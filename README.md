@@ -127,8 +127,8 @@ The ESP32 Arduino C++ code is in `firmware/esp32_fivsed_uploader/esp32_fivsed_up
 
 ---
 
-## 6. In-App Testing
+## 6. Live Dynamic Telemetry & Hardware Connection
 
-When deployed on Vercel, evaluators can test the dynamic behavior directly in the web browser using the top action bar:
-* **"Test Scan Report (PASS)"**: Generates an authoritative pass scan report.
-* **"Inject Tamper Alert (FAIL)"**: Generates a hash mismatch and raises an active `CRITICAL` alert.
+* **Dynamic Offline State**: When no hardware is transmitting, the application displays **Hardware Offline** and **Awaiting Telemetry**.
+* **Dynamic Active State**: When the STM32 performs a firmware integrity scan and sends the decision via UART to the ESP32, the ESP32 uploads the result via HTTPS `POST /api/events`. The dashboard immediately updates to **Hardware Active** with the live scan report.
+* **Data Reset**: An operator can clear stored scan telemetry and alerts at any time via the **Clear Data** button in the top navigation bar or `DELETE /api/events`.
