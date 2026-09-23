@@ -1,0 +1,228 @@
+'use client';
+
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { 
+  Device, 
+  FirmwareVerification, 
+  SecurityAlert, 
+  SecurityEvent
+} from '@/types/fivsed';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
+
+export const GOLDEN_REFERENCE_HASH = '8f4a7c1b5e2d9a03b6e8d1f4c7a2b5e8d1f4c7a2b5e8d1f4c7a2b5e8d1f4c7a2';
+export const TAMPERED_HASH = '9c2b4d8e1f0a5b7c3e9a1d2f4b6c8e0a2d4f6b8c0e2a4d6f8a0b2d4e6f8a0b2c';
+
+interface FIVSEDContextType {
+  devices: Device[];
+  verifications: FirmwareVerification[];
+  latestVerification: FirmwareVerification | null;
+  events: SecurityEvent[];
+  alerts: SecurityAlert[];
+  activeAlertsCount: number;
+  lastSync: Date;
+  isRealtimeConnected: boolean;
+  isHardwareConnected: boolean;
+  isLoading: boolean;
+  isSimulating: boolean;
+  refreshData: () => Promise<void>;
+  clearAllData: () => Promise<void>;
+  acknowledgeAlert: (alertId: string) => Promise<void>;
+  resolveAlert: (alertId: string) => Promise<void>;
+  triggerSimulatedVerification: (type: 'PASS' | 'FAIL') => Promise<void>;
+}
+
+const FIVSEDContext = createContext<FIVSEDContextType | undefined>(undefined);
+
+export function FIVSEDProvider({ children }: { children: React.ReactNode }) {
+  // Start with clean dynamic state (NO STATIC DATA)
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [verifications, setVerifications] = useState<FirmwareVerification[]>([]);
+  const [events, setEvents] = useState<SecurityEvent[]>([]);
+  const [alerts, setAlerts] = useState<SecurityAlert[]>([]);
+  const [lastSync, setLastSync] = useState<Date>(new Date());
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState<boolean>(true);
+  const [isHardwareOnline, setIsHardwareOnline] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSimulating, setIsSimulating] = useState<boolean>(false);
+
+  const latestVerification = verifications.length > 0 ? verifications[0] : null;
+  const activeAlertsCount = alerts.filter(a => a.status === 'ACTIVE').length;
+  const isHardwareConnected = isHardwareOnline || (devices.length > 0 && devices.some(d => d.status === 'ONLINE' || d.status === 'WARNING'));
+
+  const refreshData = useCallback(async () => {
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const [devRes, verRes, evtRes, altRes] = await Promise.all([
+          supabase.from('devices').select('*').order('device_id'),
+          supabase.from('firmware_verifications').select('*').order('verified_at', { ascending: false }).limit(50),
+          supabase.from('security_events').select('*').order('created_at', { ascending: false }).limit(50),
+          supabase.from('alerts').select('*').order('created_at', { ascending: false })
+        ]);
+
+        if (devRes.data) setDevices(devRes.data as Device[]);
+        if (verRes.data) setVerifications(verRes.data as FirmwareVerification[]);
+        if (evtRes.data) setEvents(evtRes.data as SecurityEvent[]);
+        if (altRes.data) setAlerts(altRes.data as SecurityAlert[]);
+      } else {
+        // Query live dynamic API ingestion endpoint
+        const res = await fetch('/api/events');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.devices) setDevices(data.devices);
+          if (data.verifications) setVerifications(data.verifications);
+          if (data.events) setEvents(data.events);
+          if (data.alerts) setAlerts(data.alerts);
+          if (typeof data.isHardwareConnected === 'boolean') {
+            setIsHardwareOnline(data.isHardwareConnected);
+          }
+        }
+      }
+      setLastSync(new Date());
+    } catch (err) {
+      console.error('Error fetching live FIVSED monitoring data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const clearAllData = async () => {
+    try {
+      await fetch('/api/events', { method: 'DELETE' });
+      setDevices([]);
+      setVerifications([]);
+      setEvents([]);
+      setAlerts([]);
+      setIsHardwareOnline(false);
+      await refreshData();
+    } catch (err) {
+      console.error('Failed to clear FIVSED telemetry data:', err);
+    }
+  };
+
+  useEffect(() => {
+    refreshData();
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      const channel = client
+        .channel('fivsed-realtime-monitoring')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'firmware_verifications' }, () => {
+          refreshData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'security_events' }, () => {
+          refreshData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, () => {
+          refreshData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'devices' }, () => {
+          refreshData();
+        })
+        .subscribe((status) => {
+          setIsRealtimeConnected(status === 'SUBSCRIBED');
+        });
+
+      return () => {
+        client.removeChannel(channel);
+      };
+    } else {
+      // Auto-poll every 3 seconds for live ESP32 ingestion updates
+      const interval = setInterval(() => {
+        refreshData();
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [refreshData]);
+
+  const acknowledgeAlert = async (alertId: string) => {
+    try {
+      await fetch('/api/events', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alertId, action: 'ACKNOWLEDGE' })
+      });
+      await refreshData();
+    } catch (err) {
+      console.error('Error acknowledging alert:', err);
+    }
+  };
+
+  const resolveAlert = async (alertId: string) => {
+    try {
+      await fetch('/api/events', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alertId, action: 'RESOLVE' })
+      });
+      await refreshData();
+    } catch (err) {
+      console.error('Error resolving alert:', err);
+    }
+  };
+
+  const triggerSimulatedVerification = async (type: 'PASS' | 'FAIL') => {
+    setIsSimulating(true);
+    const nextVerId = (latestVerification?.verification_id || 40) + 1;
+    const isPass = type === 'PASS';
+    const currentHash = isPass ? GOLDEN_REFERENCE_HASH : TAMPERED_HASH;
+
+    try {
+      await fetch('/api/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': 'fivsed_sec_key_77e9b812a4309c48'
+        },
+        body: JSON.stringify({
+          device_id: 'FIVSED-001',
+          event: isPass ? 'FIRMWARE_VERIFICATION' : 'HASH_MISMATCH',
+          status: type,
+          verification_id: nextVerId,
+          current_hash: currentHash,
+          reference_hash: GOLDEN_REFERENCE_HASH,
+          verification_duration_ms: Math.floor(380 + Math.random() * 30),
+          severity: isPass ? 'INFO' : 'CRITICAL',
+          message: isPass 
+            ? `Periodic firmware verification cycle #${nextVerId} completed: SHA-256 match confirmed.`
+            : `Firmware integrity verification failed because the measured hash did not match the trusted reference on FIVSED-001 (Verification #${nextVerId}).`
+        })
+      });
+      await refreshData();
+    } catch (err) {
+      console.error('Failed to trigger verification via API:', err);
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
+  return (
+    <FIVSEDContext.Provider value={{
+      devices,
+      verifications,
+      latestVerification,
+      events,
+      alerts,
+      activeAlertsCount,
+      lastSync,
+      isRealtimeConnected,
+      isHardwareConnected,
+      isLoading,
+      isSimulating,
+      refreshData,
+      clearAllData,
+      acknowledgeAlert,
+      resolveAlert,
+      triggerSimulatedVerification
+    }}>
+      {children}
+    </FIVSEDContext.Provider>
+  );
+}
+
+export function useFIVSED() {
+  const context = useContext(FIVSEDContext);
+  if (!context) {
+    throw new Error('useFIVSED must be used within a FIVSEDProvider');
+  }
+  return context;
+}
