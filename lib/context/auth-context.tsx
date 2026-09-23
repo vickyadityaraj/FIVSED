@@ -89,6 +89,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [isDemoMode]);
 
   const login = async (email?: string, password?: string, role?: UserRole) => {
+    const trimmedEmail = email?.trim().toLowerCase();
+
+    // 1. Authoritative Console Administrator Credentials
+    if (
+      (trimmedEmail === 'admin@fivsed.com' || trimmedEmail === 'admin@fivsed.local') &&
+      password === 'Admin@12345'
+    ) {
+      const adminUser: UserProfile = {
+        id: 'usr-admin-primary',
+        email: 'admin@fivsed.com',
+        full_name: 'Aditya Raj (Administrator)',
+        role: 'admin',
+        created_at: new Date().toISOString()
+      };
+      setUser(adminUser);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('fivsed_user', JSON.stringify(adminUser));
+      }
+      return { success: true };
+    }
+
+    // 2. Authoritative SOC Operator Credentials
+    if (
+      (trimmedEmail === 'operator@fivsed.com' || trimmedEmail === 'operator@fivsed.local') &&
+      password === 'Operator@12345'
+    ) {
+      const opUser: UserProfile = {
+        id: 'usr-operator-primary',
+        email: 'operator@fivsed.com',
+        full_name: 'Security Operations Officer',
+        role: 'security_operator',
+        created_at: new Date().toISOString()
+      };
+      setUser(opUser);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('fivsed_user', JSON.stringify(opUser));
+      }
+      return { success: true };
+    }
+
+    // 3. Supabase Auth for other registered users
     if (isSupabaseConfigured && supabase) {
       if (!email || !password) {
         return { success: false, error: 'Email and password are required' };
@@ -102,11 +143,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Dynamic console login
+    // Dynamic console fallback
     const targetRole = role || 'security_operator';
     const dynamicUser: UserProfile = {
       id: `usr-${Date.now()}`,
-      email: email || 'operator@fivsed.local',
+      email: email || 'operator@fivsed.com',
       full_name: email ? email.split('@')[0].toUpperCase() : 'Security Operator',
       role: targetRole,
       created_at: new Date().toISOString()
