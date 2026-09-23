@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { FivsedLogo } from '@/components/ui/FivsedLogo';
 import { useAuth } from '@/lib/context/auth-context';
-import { UserRole } from '@/types/fivsed';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,19 +41,6 @@ export default function LoginPage() {
       }
     } catch {
       setError('An unexpected network error occurred.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleQuickDemoLogin = async (role: UserRole) => {
-    setError(null);
-    setLoading(true);
-    try {
-      await login(undefined, undefined, role);
-      router.push('/dashboard');
-    } catch {
-      setError('Failed to log in with demo account.');
     } finally {
       setLoading(false);
     }
@@ -192,38 +178,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Credentials Access */}
-          <div className="pt-3 border-t border-slate-800 space-y-2.5">
-            <div className="flex items-center justify-between text-[11px] text-slate-400">
-              <span className="font-semibold text-slate-300">Quick Access (Evaluation Demo):</span>
-              <span className="text-[10px] text-cyan-400">1-Click Sign-in</span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('admin')}
-                className="py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] font-semibold text-cyan-300 transition-colors text-center"
-              >
-                Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('security_operator')}
-                className="py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] font-semibold text-emerald-300 transition-colors text-center"
-              >
-                Operator
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('viewer')}
-                className="py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] font-semibold text-slate-300 transition-colors text-center"
-              >
-                Viewer
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Security Notice Footer */}
