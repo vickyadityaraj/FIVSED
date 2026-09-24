@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { 
   Device, 
+  DeviceStatus,
   FirmwareVerification, 
   SecurityAlert, 
   SecurityEvent
@@ -55,6 +56,7 @@ export function FIVSEDProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const latestVerification = verifications.length > 0 ? verifications[0] : null;
+  const activeAlertsCount = alerts.filter(a => a.status === 'ACTIVE').length;
   const lastPacketTime = latestVerification ? new Date(latestVerification.verified_at).getTime() : 0;
   const secondsSinceLastPacket = lastPacketTime > 0 ? Math.max(0, Math.floor((now - lastPacketTime) / 1000)) : null;
 
@@ -78,9 +80,10 @@ export function FIVSEDProvider({ children }: { children: React.ReactNode }) {
           const computed = (devRes.data as Device[]).map(d => {
             const lastSeenTime = d.last_seen ? new Date(d.last_seen).getTime() : 0;
             const isOnline = (currentTimestamp - lastSeenTime) < 45000;
+            const status: DeviceStatus = isOnline ? (d.status === 'WARNING' ? 'WARNING' : 'ONLINE') : 'OFFLINE';
             return {
               ...d,
-              status: isOnline ? (d.status === 'WARNING' ? 'WARNING' : 'ONLINE') : 'OFFLINE'
+              status
             };
           });
           setDevices(computed);
@@ -230,6 +233,7 @@ export function FIVSEDProvider({ children }: { children: React.ReactNode }) {
       lastSync,
       isRealtimeConnected,
       isHardwareConnected,
+      secondsSinceLastPacket,
       isLoading,
       isSimulating,
       refreshData,
