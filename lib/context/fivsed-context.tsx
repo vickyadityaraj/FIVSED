@@ -22,6 +22,7 @@ interface FIVSEDContextType {
   lastSync: Date;
   isRealtimeConnected: boolean;
   isHardwareConnected: boolean;
+  secondsSinceLastPacket: number | null;
   isLoading: boolean;
   isSimulating: boolean;
   refreshData: () => Promise<void>;
@@ -41,14 +42,25 @@ export function FIVSEDProvider({ children }: { children: React.ReactNode }) {
   const [alerts, setAlerts] = useState<SecurityAlert[]>([]);
   const [lastSync, setLastSync] = useState<Date>(new Date());
   const [isRealtimeConnected, setIsRealtimeConnected] = useState<boolean>(true);
-  const [isHardwareOnline, setIsHardwareOnline] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
+  const [now, setNow] = useState<number>(Date.now());
+
+  // 1-second continuous clock ticker for precise live heartbeat countdown
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const latestVerification = verifications.length > 0 ? verifications[0] : null;
-  const isHardwareConnected = isHardwareOnline || 
-    (devices.length > 0 && devices.some(d => d.status === 'ONLINE' || d.status === 'WARNING')) ||
-    (verifications.length > 0 && (Date.now() - new Date(verifications[0].verified_at).getTime()) < 180000);
+  const lastPacketTime = latestVerification ? new Date(latestVerification.verified_at).getTime() : 0;
+  const secondsSinceLastPacket = lastPacketTime > 0 ? Math.max(0, Math.floor((now - lastPacketTime) / 1000)) : null;
+
+  // STRICT DYNAMIC HEARTBEAT:
+  // Hardware transmits every 30 seconds. If no packet received within 45 seconds, hardware is OFFLINE.
+  const isHardwareConnected = lastPacketTime > 0 && (now - lastPacketTime) < 45000;
 
   const refreshData = useCallback(async () => {
     try {
@@ -60,7 +72,20 @@ export function FIVSEDProvider({ children }: { children: React.ReactNode }) {
           supabase.from('alerts').select('*').order('created_at', { ascending: false })
         ]);
 
-        if (devRes.data) setDevices(devRes.data as Device[]);
+        const currentTimestamp = Date.now();
+
+        if (devRes.data) {
+          const computed = (devRes.data as Device[]).map(d => {
+            const lastSeenTime = d.last_seen ? new Date(d.last_seen).getTime() : 0;
+            const isOnline = (currentTimestamp - lastSeenTime) < 45000;
+            return {
+              ...d,
+              status: isOnline ? (d.status === 'WARNING' ? 'WARNING' : 'ONLINE') : 'OFFLINE'
+            };
+          });
+          setDevices(computed);
+        }
+
         if (verRes.data) setVerifications(verRes.data as FirmwareVerification[]);
         if (evtRes.data) setEvents(evtRes.data as SecurityEvent[]);
         if (altRes.data) setAlerts(altRes.data as SecurityAlert[]);
@@ -73,9 +98,6 @@ export function FIVSEDProvider({ children }: { children: React.ReactNode }) {
           if (data.verifications) setVerifications(data.verifications);
           if (data.events) setEvents(data.events);
           if (data.alerts) setAlerts(data.alerts);
-          if (typeof data.isHardwareConnected === 'boolean') {
-            setIsHardwareOnline(data.isHardwareConnected);
-          }
         }
       }
       setLastSync(new Date());
@@ -93,7 +115,6 @@ export function FIVSEDProvider({ children }: { children: React.ReactNode }) {
       setVerifications([]);
       setEvents([]);
       setAlerts([]);
-      setIsHardwareOnline(false);
       await refreshData();
     } catch (err) {
       console.error('Failed to clear FIVSED telemetry data:', err);
@@ -102,6 +123,11 @@ export function FIVSEDProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refreshData();
+
+    // Auto-poll every 3 seconds to guarantee real-time updates as ESP32 transmits
+    const pollInterval = setInterval(() => {
+      refreshData();
+    }, 3000);
 
     const client = supabase;
     if (isSupabaseConfigured && client) {
@@ -124,15 +150,12 @@ export function FIVSEDProvider({ children }: { children: React.ReactNode }) {
         });
 
       return () => {
+        clearInterval(pollInterval);
         client.removeChannel(channel);
       };
-    } else {
-      // Auto-poll every 3 seconds for live ESP32 ingestion updates
-      const interval = setInterval(() => {
-        refreshData();
-      }, 3000);
-      return () => clearInterval(interval);
     }
+
+    return () => clearInterval(pollInterval);
   }, [refreshData]);
 
   const acknowledgeAlert = async (alertId: string) => {

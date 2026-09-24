@@ -91,10 +91,10 @@ export function IntegrityStatusCard({ verification, onViewDetails }: IntegritySt
                 Current Firmware Integrity Status
               </h2>
               <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                <span>Verified by</span>
-                <span className="text-cyan-400 font-semibold font-mono">STM32 Security Authority</span>
+                <span>Verification Report</span>
+                <span className="text-cyan-400 font-semibold font-mono">#{verification.verification_id}</span>
                 <span className="text-slate-600">•</span>
-                <span>Uploaded via ESP32</span>
+                <span>Uploaded via ESP32 ({verification.device_id})</span>
               </p>
             </div>
           </div>
@@ -129,8 +129,8 @@ export function IntegrityStatusCard({ verification, onViewDetails }: IntegritySt
               </div>
               <p className="text-xs text-slate-400 mt-1 max-w-xl">
                 {isPass
-                  ? 'Firmware integrity verified successfully. Current SHA-256 measurement matches the trusted golden reference stored in protected STM32 memory.'
-                  : 'Firmware integrity verification failed because the measured hash did not match the trusted reference on ' + verification.device_id + '.'}
+                  ? `Firmware integrity verified successfully on target ${verification.device_id}. SHA-256 measurement matches trusted golden reference.`
+                  : `Firmware integrity verification failed on target ${verification.device_id}. Measured hash did not match trusted reference.`}
               </p>
             </div>
           </div>

@@ -25,6 +25,7 @@ export function Topbar({
   const { 
     lastSync, 
     isHardwareConnected, 
+    secondsSinceLastPacket,
     refreshData,
     clearAllData
   } = useFIVSED();
@@ -85,8 +86,10 @@ export function Topbar({
           }`}
           title={
             isHardwareConnected 
-              ? 'Hardware is actively connected and transmitting STM32 measurements via ESP32' 
-              : 'Hardware is offline. Awaiting connection from ESP32 / Raspberry Pi.'
+              ? `Hardware is actively transmitting telemetry. Last scan received ${secondsSinceLastPacket ?? 0}s ago.` 
+              : secondsSinceLastPacket !== null 
+                ? `Hardware is offline. Last scan was received ${secondsSinceLastPacket}s ago.`
+                : 'Hardware is offline. Awaiting connection from ESP32.'
           }
         >
           <span className="relative flex h-2 w-2">
@@ -96,7 +99,9 @@ export function Topbar({
             <span className={`relative inline-flex rounded-full h-2 w-2 ${isHardwareConnected ? 'bg-emerald-500' : 'bg-slate-500'}`}></span>
           </span>
           <span className="font-semibold hidden sm:inline">
-            {isHardwareConnected ? 'Hardware Active' : 'Hardware Offline'}
+            {isHardwareConnected 
+              ? `Hardware Active (${secondsSinceLastPacket ?? 0}s)` 
+              : 'Hardware Offline'}
           </span>
         </div>
 

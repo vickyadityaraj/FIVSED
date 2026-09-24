@@ -27,15 +27,15 @@ export async function GET() {
       const devices = devRes.data || [];
       const now = Date.now();
       const computedDevices = devices.map(d => {
-        const isOnline = (now - new Date(d.last_seen).getTime()) < 120000;
+        const isOnline = (now - new Date(d.last_seen).getTime()) < 45000;
         return {
           ...d,
           status: isOnline ? (d.status === 'WARNING' ? 'WARNING' : 'ONLINE') : 'OFFLINE'
         };
       });
 
-      const isHardwareConnected = computedDevices.some(d => d.status === 'ONLINE' || d.status === 'WARNING') ||
-        ((verRes.data || []).length > 0 && (now - new Date(verRes.data[0].verified_at).getTime()) < 180000);
+      const isHardwareConnected = (verRes.data && verRes.data.length > 0 && (now - new Date(verRes.data[0].verified_at).getTime()) < 45000) ||
+        computedDevices.some(d => d.status === 'ONLINE' || d.status === 'WARNING');
 
       return NextResponse.json({
         success: true,
@@ -143,15 +143,15 @@ export async function POST(req: NextRequest) {
     // 4. Record to Supabase if configured
     const supabase = getServerSupabase();
     if (supabase) {
-      // Upsert device first to ensure foreign key integrity
+      // Upsert device accurately as the ESP32 node
       const { error: devErr } = await supabase.from('devices').upsert({
         device_id,
-        device_type: device_id.includes('002') ? 'ESP32' : device_id.includes('003') ? 'RASPBERRY_PI' : 'STM32',
-        device_name: device_id === 'FIVSED-001' ? 'STM32F407 Security Verifier' : device_id === 'FIVSED-002' ? 'ESP32-WROOM-32 Node' : 'Raspberry Pi 3 Model B+',
-        role_title: device_id === 'FIVSED-001' ? 'Security Authority' : 'Controller & Web Uploader',
-        role_description: device_id === 'FIVSED-001' ? 'Authoritative firmware integrity verifier' : 'ESP32 Uploader',
+        device_type: 'ESP32',
+        device_name: `ESP32 Wi-Fi Node (${device_id})`,
+        role_title: 'Telemetry Uplink Node',
+        role_description: 'Active ESP32 Wi-Fi telemetry uplink streaming firmware verification scan reports',
         status: isFailure ? 'WARNING' : 'ONLINE',
-        communication_method: 'Internal HW Bus / Dual UART to ESP32',
+        communication_method: 'Wi-Fi / HTTPS REST API',
         last_seen: eventTime
       }, { onConflict: 'device_id' });
       if (devErr) console.error('Supabase device upsert error:', devErr);
