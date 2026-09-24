@@ -28,7 +28,7 @@ export function Topbar({
     refreshData,
     clearAllData
   } = useFIVSED();
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const [isClearing, setIsClearing] = useState(false);
   const [clearedNotice, setClearedNotice] = useState(false);
 
@@ -135,7 +135,7 @@ export function Topbar({
         </div>
 
         {/* User Pill / Profile Shortcut */}
-        {user && (
+        {user ? (
           <Link
             href="/profile"
             className="flex items-center gap-2 pl-2 border-l border-slate-800 text-xs font-semibold text-slate-300 hover:text-white"
@@ -145,7 +145,12 @@ export function Topbar({
             </div>
             <span className="hidden xl:inline max-w-[120px] truncate">{user.full_name}</span>
           </Link>
-        )}
+        ) : isLoading ? (
+          <div className="flex items-center gap-2 pl-2 border-l border-slate-800 animate-pulse">
+            <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700" />
+            <div className="hidden xl:block h-3 w-16 bg-slate-800 rounded" />
+          </div>
+        ) : null}
       </div>
     </header>
   );

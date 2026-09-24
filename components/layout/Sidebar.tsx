@@ -34,7 +34,7 @@ const NAV_ITEMS = [
 
 export function Sidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, isLoading, logout } = useAuth();
   const { activeAlertsCount, isRealtimeConnected } = useFIVSED();
 
   return (
@@ -130,6 +130,14 @@ export function Sidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
             >
               <LogOut className="w-4 h-4" />
             </button>
+          </div>
+        ) : isLoading ? (
+          <div className="pt-1 flex items-center gap-2.5 px-1 animate-pulse">
+            <div className="w-8 h-8 rounded-full bg-slate-800 shrink-0" />
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <div className="h-3 bg-slate-800 rounded w-24" />
+              <div className="h-2 bg-slate-800/60 rounded w-16" />
+            </div>
           </div>
         ) : (
           <Link

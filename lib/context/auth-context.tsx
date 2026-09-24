@@ -15,18 +15,40 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  // Synchronously initialize user from localStorage if present to prevent any render flicker on page refresh
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    if (typeof window !== 'undefined') {
+      const savedUser = localStorage.getItem('fivsed_user');
+      if (savedUser) {
+        try {
+          return JSON.parse(savedUser);
+        } catch (e) {
+          console.error('Failed to parse saved user from localStorage', e);
+        }
+      }
+    }
+    return null;
+  });
+
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      // If we already have a saved user session in localStorage, we are not in a blocking loading state
+      return !localStorage.getItem('fivsed_user');
+    }
+    return true;
+  });
+
   const isDemoMode = !isSupabaseConfigured;
 
   useEffect(() => {
-    // 1. Immediately restore saved terminal session from localStorage
+    // 1. Double check localStorage on mount in case it was updated in another tab
     if (typeof window !== 'undefined') {
       const savedUser = localStorage.getItem('fivsed_user');
       if (savedUser) {
         try {
           const parsed = JSON.parse(savedUser);
           setUser(parsed);
+          setIsLoading(false);
         } catch (e) {
           console.error('Failed to parse saved user', e);
         }
