@@ -20,29 +20,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isDemoMode = !isSupabaseConfigured;
 
   useEffect(() => {
-    // Check local storage for persistent session
-    const savedUser = typeof window !== 'undefined' ? localStorage.getItem('fivsed_user') : null;
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        console.error('Failed to parse saved user', e);
+    // 1. Immediately restore saved terminal session from localStorage
+    if (typeof window !== 'undefined') {
+      const savedUser = localStorage.getItem('fivsed_user');
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          setUser(parsed);
+        } catch (e) {
+          console.error('Failed to parse saved user', e);
+        }
       }
-    } else if (isDemoMode) {
-      // Default active operator session
-      const defaultOperator: UserProfile = {
-        id: 'usr-active-secops',
-        email: 'operator@fivsed.local',
-        full_name: 'Security Operator (Active Console)',
-        role: 'security_operator',
-        created_at: new Date().toISOString()
-      };
-      setUser(defaultOperator);
-      localStorage.setItem('fivsed_user', JSON.stringify(defaultOperator));
     }
 
     const client = supabase;
     if (isSupabaseConfigured && client) {
+      // 2. Check active Supabase JWT session if available
       client.auth.getSession().then(({ data: { session } }) => {
         if (session?.user) {
           client
@@ -52,34 +45,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .single()
             .then(({ data }) => {
               if (data) {
-                setUser({
+                const supaUser: UserProfile = {
                   id: data.id,
                   email: data.email,
                   full_name: data.full_name,
                   role: data.role as UserRole,
                   created_at: data.created_at,
-                });
-              } else {
-                setUser({
-                  id: session.user.id,
-                  email: session.user.email || '',
-                  full_name: session.user.user_metadata?.full_name || 'Security Operator',
-                  role: 'security_operator',
-                  created_at: session.user.created_at,
-                });
+                };
+                setUser(supaUser);
+                localStorage.setItem('fivsed_user', JSON.stringify(supaUser));
+              }
+            });
+        }
+        setIsLoading(false);
+      }).catch((err) => {
+        console.error('Session retrieval error:', err);
+        setIsLoading(false);
+      });
+
+      // 3. Only sign out user if an explicit SIGNED_OUT event is triggered
+      const { data: authListener } = client.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          localStorage.removeItem('fivsed_user');
+        } else if (session?.user) {
+          client
+            .from('profiles')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single()
+            .then(({ data }) => {
+              if (data) {
+                const supaUser: UserProfile = {
+                  id: data.id,
+                  email: data.email,
+                  full_name: data.full_name,
+                  role: data.role as UserRole,
+                  created_at: data.created_at,
+                };
+                setUser(supaUser);
+                localStorage.setItem('fivsed_user', JSON.stringify(supaUser));
               }
             });
         }
       });
 
-      const { data: authListener } = client.auth.onAuthStateChange((_event, session) => {
-        if (!session) {
-          setUser(null);
-          localStorage.removeItem('fivsed_user');
-        }
-      });
-
-      setIsLoading(false);
       return () => {
         authListener?.subscription.unsubscribe();
       };
