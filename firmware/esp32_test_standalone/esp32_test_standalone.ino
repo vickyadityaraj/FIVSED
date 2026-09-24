@@ -18,9 +18,14 @@
  * ==============================================================================
  */
 
+#include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
+
+// Forward Function Prototypes (Required by PlatformIO / Standard C++)
+void connectWiFi();
+void sendTestScanReport();
 
 // Wi-Fi Configuration
 const char* WIFI_SSID     = "Abhishek";
