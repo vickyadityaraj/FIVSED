@@ -31,18 +31,6 @@ export function AppLayout({ children, title, subtitle }: AppLayoutProps) {
     return <>{children}</>;
   }
 
-  // Prevent flash of unauthenticated layout during initial load
-  if (isLoading && !user) {
-    return (
-      <div className="flex h-screen w-full bg-[#070b14] items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-7 h-7 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin" />
-          <p className="text-xs font-mono text-slate-400">Restoring terminal session...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-screen w-full bg-[#070b14] text-slate-100 overflow-hidden">
       {/* Desktop Sidebar (Persistent) */}

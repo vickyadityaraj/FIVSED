@@ -34,8 +34,13 @@ const NAV_ITEMS = [
 
 export function Sidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
   const pathname = usePathname();
-  const { user, isLoading, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { activeAlertsCount, isRealtimeConnected } = useFIVSED();
+  const [isMounted, setIsMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   return (
     <aside className="w-64 h-full bg-[#09101f] border-r border-slate-800 flex flex-col justify-between select-none">
@@ -106,7 +111,7 @@ export function Sidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
         </div>
 
         {/* User Card & Logout */}
-        {user ? (
+        {isMounted && user ? (
           <div className="pt-1 flex items-center justify-between gap-2 px-1">
             <Link 
               href="/profile" 
@@ -131,23 +136,14 @@ export function Sidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
               <LogOut className="w-4 h-4" />
             </button>
           </div>
-        ) : isLoading ? (
-          <div className="pt-1 flex items-center gap-2.5 px-1 animate-pulse">
-            <div className="w-8 h-8 rounded-full bg-slate-800 shrink-0" />
+        ) : (
+          <div className="pt-1 flex items-center gap-2.5 px-1">
+            <div className="w-8 h-8 rounded-full bg-slate-800/80 border border-slate-700/60 shrink-0" />
             <div className="space-y-1.5 flex-1 min-w-0">
-              <div className="h-3 bg-slate-800 rounded w-24" />
-              <div className="h-2 bg-slate-800/60 rounded w-16" />
+              <div className="h-3 bg-slate-800/80 rounded w-24" />
+              <div className="h-2 bg-slate-800/50 rounded w-16" />
             </div>
           </div>
-        ) : (
-          <Link
-            href="/login"
-            onClick={onCloseMobile}
-            className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs transition-colors"
-          >
-            <User className="w-4 h-4" />
-            <span>Sign In</span>
-          </Link>
         )}
       </div>
     </aside>

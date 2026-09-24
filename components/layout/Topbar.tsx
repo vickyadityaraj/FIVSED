@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   RefreshCw, 
@@ -28,9 +28,14 @@ export function Topbar({
     refreshData,
     clearAllData
   } = useFIVSED();
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();
   const [isClearing, setIsClearing] = useState(false);
   const [clearedNotice, setClearedNotice] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const formatSyncTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -135,7 +140,7 @@ export function Topbar({
         </div>
 
         {/* User Pill / Profile Shortcut */}
-        {user ? (
+        {isMounted && user ? (
           <Link
             href="/profile"
             className="flex items-center gap-2 pl-2 border-l border-slate-800 text-xs font-semibold text-slate-300 hover:text-white"
@@ -145,12 +150,12 @@ export function Topbar({
             </div>
             <span className="hidden xl:inline max-w-[120px] truncate">{user.full_name}</span>
           </Link>
-        ) : isLoading ? (
-          <div className="flex items-center gap-2 pl-2 border-l border-slate-800 animate-pulse">
-            <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700" />
-            <div className="hidden xl:block h-3 w-16 bg-slate-800 rounded" />
+        ) : (
+          <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
+            <div className="w-7 h-7 rounded-full bg-slate-800/80 border border-slate-700/60 shrink-0" />
+            <div className="hidden xl:block h-3 w-16 bg-slate-800/50 rounded" />
           </div>
-        ) : null}
+        )}
       </div>
     </header>
   );
