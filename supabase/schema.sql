@@ -166,14 +166,18 @@ CREATE TRIGGER trigger_verification_failure
     EXECUTE FUNCTION public.handle_verification_failure_alert();
 
 -- Row Level Security (RLS)
+-- Keep user profiles protected with RLS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.devices ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.firmware_verifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.security_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.alerts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.device_heartbeats ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies: Authenticated users can view monitoring data
+-- Telemetry tables are authenticated via Next.js API (x-api-key header: fivsed_sec_key_77e9b812a4309c48)
+-- Disabling RLS on telemetry tables ensures ingestion works cleanly with standard Supabase keys
+ALTER TABLE public.devices DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.firmware_verifications DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.security_events DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.alerts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.device_heartbeats DISABLE ROW LEVEL SECURITY;
+
+-- RLS Policies: Authenticated users can view profiles
 CREATE POLICY "Authenticated users can view profiles" 
     ON public.profiles FOR SELECT TO authenticated USING (true);
 

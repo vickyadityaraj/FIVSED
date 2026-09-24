@@ -46,8 +46,9 @@ export function FIVSEDProvider({ children }: { children: React.ReactNode }) {
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
 
   const latestVerification = verifications.length > 0 ? verifications[0] : null;
-  const activeAlertsCount = alerts.filter(a => a.status === 'ACTIVE').length;
-  const isHardwareConnected = isHardwareOnline || (devices.length > 0 && devices.some(d => d.status === 'ONLINE' || d.status === 'WARNING'));
+  const isHardwareConnected = isHardwareOnline || 
+    (devices.length > 0 && devices.some(d => d.status === 'ONLINE' || d.status === 'WARNING')) ||
+    (verifications.length > 0 && (Date.now() - new Date(verifications[0].verified_at).getTime()) < 180000);
 
   const refreshData = useCallback(async () => {
     try {

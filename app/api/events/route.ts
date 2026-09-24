@@ -34,7 +34,8 @@ export async function GET() {
         };
       });
 
-      const isHardwareConnected = computedDevices.some(d => d.status === 'ONLINE' || d.status === 'WARNING');
+      const isHardwareConnected = computedDevices.some(d => d.status === 'ONLINE' || d.status === 'WARNING') ||
+        ((verRes.data || []).length > 0 && (now - new Date(verRes.data[0].verified_at).getTime()) < 180000);
 
       return NextResponse.json({
         success: true,
@@ -143,7 +144,7 @@ export async function POST(req: NextRequest) {
     const supabase = getServerSupabase();
     if (supabase) {
       // Upsert device first to ensure foreign key integrity
-      await supabase.from('devices').upsert({
+      const { error: devErr } = await supabase.from('devices').upsert({
         device_id,
         device_type: device_id.includes('002') ? 'ESP32' : device_id.includes('003') ? 'RASPBERRY_PI' : 'STM32',
         device_name: device_id === 'FIVSED-001' ? 'STM32F407 Security Verifier' : device_id === 'FIVSED-002' ? 'ESP32-WROOM-32 Node' : 'Raspberry Pi 3 Model B+',
@@ -153,10 +154,11 @@ export async function POST(req: NextRequest) {
         communication_method: 'Internal HW Bus / Dual UART to ESP32',
         last_seen: eventTime
       }, { onConflict: 'device_id' });
+      if (devErr) console.error('Supabase device upsert error:', devErr);
 
       // Record scan report
       if (isIntegrityEvent && verification_id) {
-        await supabase.from('firmware_verifications').insert({
+        const { error: verErr } = await supabase.from('firmware_verifications').insert({
           verification_id,
           device_id,
           current_hash: current_hash || 'UNKNOWN_DIGEST',
@@ -167,6 +169,7 @@ export async function POST(req: NextRequest) {
           source: 'STM32',
           verified_at: eventTime
         });
+        if (verErr) console.error('Supabase verification insert error:', verErr);
       }
 
       // Record security event
