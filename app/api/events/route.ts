@@ -34,8 +34,11 @@ export async function GET() {
         };
       });
 
-      const isHardwareConnected = (verRes.data && verRes.data.length > 0 && (now - new Date(verRes.data[0].verified_at).getTime()) < 45000) ||
-        computedDevices.some(d => d.status === 'ONLINE' || d.status === 'WARNING');
+      const latestVer = verRes.data && verRes.data.length > 0 ? verRes.data[0] : null;
+      const isHardwareConnected = Boolean(
+        (latestVer && (now - new Date(latestVer.verified_at).getTime()) < 45000) ||
+        computedDevices.some(d => d.status === 'ONLINE' || d.status === 'WARNING')
+      );
 
       return NextResponse.json({
         success: true,
