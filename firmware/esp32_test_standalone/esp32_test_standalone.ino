@@ -23,6 +23,10 @@
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 
+extern "C" {
+  #include "lwip/dns.h"
+}
+
 // Forward Function Prototypes (Required by PlatformIO / Standard C++)
 void connectWiFi();
 void sendTestScanReport();
@@ -104,6 +108,18 @@ void connectWiFi() {
     Serial.print("[WiFi] Signal Strength (RSSI): ");
     Serial.print(WiFi.RSSI());
     Serial.println(" dBm");
+
+    // Fix mobile hotspot DNS issue: explicitly set Google DNS (8.8.8.8) and Cloudflare DNS (1.1.1.1)
+    ip_addr_t primaryDns;
+    IP_ADDR4(&primaryDns, 8, 8, 8, 8);
+    dns_setserver(0, &primaryDns);
+
+    ip_addr_t secondaryDns;
+    IP_ADDR4(&secondaryDns, 1, 1, 1, 1);
+    dns_setserver(1, &secondaryDns);
+
+    Serial.println("[DNS] Configured Public DNS (8.8.8.8, 1.1.1.1) to bypass mobile hotspot DNS blocks.");
+    delay(1000); // Allow DNS routing table to settle
   } else {
     digitalWrite(PIN_ONBOARD_LED, LOW);
     Serial.println("\n[WiFi] Failed to connect. Check Wi-Fi credentials or router distance.");
