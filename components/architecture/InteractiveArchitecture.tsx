@@ -20,76 +20,78 @@ export function InteractiveArchitecture() {
   const [selectedNode, setSelectedNode] = useState<string>('STM32');
 
   const nodeDetails: Record<string, { title: string; subtitle: string; role: string; details: string[]; connections: string }> = {
-    PROTECTED_FIRMWARE: {
-      title: 'Target Protected Firmware',
-      subtitle: 'Flash Memory & Operating Code',
-      role: 'Monitored Target Image',
+    TARGET_W25Q64: {
+      title: 'Target SPI Flash (W25Q64)',
+      subtitle: 'Winbond W25Q64 64M-bit (8MB) Serial NOR Flash Memory',
+      role: 'MONITORED TARGET FIRMWARE',
       details: [
-        'Resides in designated target micro-controller / system memory partition.',
-        'Read out directly across internal secure bus during scheduled verification cycle.',
-        'Binary contents are measured through SHA-256 cryptographic digest calculation.'
+        'Physical hardware flash chip hosting operational firmware and application code.',
+        'Target device remains passive during inspection cycle without requiring execution.',
+        'Direct hardware connection to Raspberry Pi over standard 4-wire SPI bus.',
+        'Interrogated by SPI commands (0x9F JEDEC ID detection, 0x03 / 0x0B high-speed read).'
       ],
-      connections: 'Readout via Internal Bus to STM32 Verifier'
+      connections: 'SPI Bus (MOSI, MISO, SCK, CS) to Raspberry Pi'
+    },
+    RPI_STREAMER: {
+      title: 'Raspberry Pi (Detection & Flash Streamer)',
+      subtitle: 'Raspberry Pi Controller Subsystem',
+      role: 'DETECT • READ • STREAM',
+      details: [
+        'Detects target W25Q64 chip presence and validates manufacturer/device JEDEC ID.',
+        'Reads raw binary firmware sectors directly from W25Q64 across hardware SPI.',
+        'Streams binary image chunk-by-chunk over USB CDC (Communications Device Class) to STM32.',
+        'Operates purely as an acquisition and streaming agent — does NOT compute or evaluate hash authenticity.'
+      ],
+      connections: 'SPI Ingest from W25Q64 | USB CDC Streaming Out to STM32'
     },
     STM32: {
       title: 'STM32 Security Authority',
-      subtitle: 'STM32F407 High-Performance ARM Cortex-M4',
-      role: 'SECURITY AUTHORITY',
+      subtitle: 'STM32 High-Performance ARM Cortex-M4 Verifier',
+      role: 'SHA-256 • REFERENCE • COMPARE • DECISION',
       details: [
-        'Computes authoritative SHA-256 cryptographic hash of protected target firmware.',
-        'Stores immutable golden reference digest in hardware-protected internal storage.',
-        'Compares measured hash with reference hash to issue definitive PASS/FAIL decision.',
-        'Executes autonomous verification cycle every 10 minutes.',
-        'Sends independent verification results to ESP32 (UART) and Raspberry Pi (USB/UART).'
+        'Authoritative security core and trusted execution root of the FIVSED architecture.',
+        'Computes streaming 256-bit cryptographic SHA-256 hash across incoming binary data.',
+        'Stores trusted golden reference digest inside protected internal non-volatile memory.',
+        'Executes strict cryptographic comparison to determine definitive MATCH or HASH_MISMATCH.',
+        'Dispatches independent results across two isolated channels: USB CDC to Raspberry Pi and UART TX to ESP32.'
       ],
-      connections: 'Dual Independent Links: UART to ESP32, UART/USB to Raspberry Pi'
+      connections: 'USB CDC In/Out with Raspberry Pi | Dedicated UART TX to ESP32'
+    },
+    RPI_GUI: {
+      title: 'Raspberry Pi (Local GUI & Audit History)',
+      subtitle: 'On-Premises Operator Terminal & Local Storage',
+      role: 'GUI DISPLAY & AUDIT HISTORY',
+      details: [
+        'Receives authoritative verification results returned from STM32 over USB CDC.',
+        'Displays real-time integrity status and timeline on local on-premises display/terminal.',
+        'Maintains local persistent historical audit logs on solid-state storage.',
+        'Operates independently of Internet connectivity for air-gapped security monitoring.'
+      ],
+      connections: 'USB CDC Result Stream from STM32'
     },
     ESP32: {
-      title: 'ESP32 Controller & Web Uploader',
-      subtitle: 'ESP32-WROOM Wi-Fi + Bluetooth SoC',
-      role: 'CONTROLLER & WEB UPLOADER',
+      title: 'ESP32 Peripheral Controller & Wi-Fi Gateway',
+      subtitle: 'ESP32-WROOM-32 Peripheral & Telemetry Unit',
+      role: 'LED / BUZZER INDICATORS • WI-FI TELEMETRY',
       details: [
-        'Receives verification results directly from STM32 over UART.',
-        'Controls physical indicators: Green LED (PASS), Red LED (FAIL), Piezo Buzzer (Alarm).',
-        'Uploads verification records and security events to the FIVSED Next.js Web Application via Wi-Fi (HTTPS REST POST /api/events).',
-        '⚠️ CRITICAL: Does NOT make trust decisions; only conveys the STM32 decision.'
+        'Receives authoritative result frames from STM32 over UART RX (GPIO 16).',
+        'Directly controls physical indicators: Green LED (GPIO 21), Red LED (GPIO 22), Piezo Buzzer (GPIO 23), Onboard LED (GPIO 2).',
+        'Uploads telemetry events and verification status to Web Application over Wi-Fi (HTTPS REST POST /api/events).',
+        '⚠️ ZERO TRUST DECISION: Holds no reference hashes and cannot alter verification outcomes; acts as peripheral driver.'
       ],
-      connections: 'Wi-Fi 802.11 b/g/n to Cloud Next.js API'
-    },
-    RASPBERRY_PI: {
-      title: 'Raspberry Pi 3 Model B+',
-      subtitle: 'FIVSED On-Premises Main System',
-      role: 'MAIN SYSTEM & LOCAL GUI',
-      details: [
-        'Runs local FIVSED operator GUI on attached physical touchscreen/display.',
-        'Maintains persistent local audit logs on-premise.',
-        'Direct connection to STM32 for independent redundancy and operator overrides.',
-        'Does not depend on external Internet connectivity for local status monitoring.'
-      ],
-      connections: 'Direct Hardware Serial link from STM32'
+      connections: 'UART RX from STM32 | Wi-Fi 802.11 b/g/n to Web Application'
     },
     WEB_APP: {
-      title: 'FIVSED Web Application',
-      subtitle: 'Next.js App Router SOC Dashboard',
-      role: 'REMOTE MONITORING & INCIDENT RESPONSE',
+      title: 'FIVSED Cloud Web Application',
+      subtitle: 'Next.js App Router SOC Monitoring Dashboard',
+      role: 'REMOTE MONITORING & SECURITY INCIDENT MANAGEMENT',
       details: [
-        'Receives ESP32 telemetry events via secure server-side endpoint POST /api/events.',
-        'Displays real-time firmware verification status, SHA-256 hashes, and timelines.',
-        'Dispatches immediate critical alerts upon HASH_MISMATCH detection.',
-        'Provides security analysts with full audit logs and historical analytics.'
+        'Ingests authenticated ESP32 telemetry events via POST /api/events API.',
+        'Displays real-time SOC dashboard, peripheral telemetry (Green/Red LED, Buzzer), and verification timeline.',
+        'Dispatches instant critical notifications when HASH_MISMATCH is detected.',
+        'Provides security engineers with tamper logs, device telemetry, and verification audit trails.'
       ],
-      connections: 'HTTPS Ingestion & Realtime Supabase Client'
-    },
-    SUPABASE: {
-      title: 'Supabase Cloud Infrastructure',
-      subtitle: 'PostgreSQL + Auth + Realtime Engine',
-      role: 'DATA PERSISTENCE & REALTIME DISPATCH',
-      details: [
-        'Stores structured relational data across verifications, events, alerts, and devices.',
-        'Enforces Row Level Security (RLS) based on user roles (Admin, Operator, Viewer).',
-        'Pushes real-time WebSocket updates to the Web App dashboard on table changes.'
-      ],
-      connections: 'PostgreSQL Database & Realtime WebSockets'
+      connections: 'HTTPS REST Ingestion & Realtime WebSocket Subscriptions'
     }
   };
 
@@ -107,41 +109,73 @@ export function InteractiveArchitecture() {
             Authoritative Embedded Security Pipeline
           </h2>
           <p className="text-xs text-slate-400">
-            Click any architecture module to inspect technical specifications, interfaces, and operational roles.
+            Click any architecture module to inspect technical specifications, physical interfaces, and security roles.
           </p>
         </div>
 
         {/* The Diagram Flow */}
-        <div className="flex flex-col items-center space-y-5 max-w-3xl mx-auto">
+        <div className="flex flex-col items-center space-y-4 max-w-3xl mx-auto">
           
-          {/* Node 1: Protected Firmware */}
+          {/* Level 1: Target W25Q64 Flash */}
           <button
-            onClick={() => setSelectedNode('PROTECTED_FIRMWARE')}
-            className={`w-72 p-4 rounded-xl border text-center transition-all ${
-              selectedNode === 'PROTECTED_FIRMWARE'
-                ? 'bg-slate-800 border-cyan-400 shadow-lg shadow-cyan-950/50 scale-105'
-                : 'bg-slate-900/90 border-slate-700 hover:border-slate-500'
+            onClick={() => setSelectedNode('TARGET_W25Q64')}
+            className={`w-full sm:w-80 p-4 rounded-xl border text-center transition-all ${
+              selectedNode === 'TARGET_W25Q64'
+                ? 'bg-slate-800 border-amber-400 shadow-lg shadow-amber-950/50 scale-105'
+                : 'bg-slate-900/90 border-slate-700 hover:border-amber-500'
             }`}
           >
-            <div className="flex items-center justify-center gap-2 text-xs font-bold uppercase text-slate-300">
-              <Terminal className="w-4 h-4 text-cyan-400" />
-              <span>Target Protected Firmware</span>
+            <div className="flex items-center justify-center gap-2 text-xs font-bold uppercase text-amber-300">
+              <Terminal className="w-4 h-4 text-amber-400" />
+              <span>TARGET: W25Q64</span>
             </div>
-            <p className="text-[11px] text-slate-400 mt-1 font-mono">Flash Image Memory</p>
+            <p className="text-[11px] text-slate-300 mt-1 font-semibold">SPI NOR Flash Memory (64M-bit)</p>
+            <p className="text-[10px] text-slate-400 font-mono">Protected Firmware Image</p>
           </button>
 
-          {/* Arrow */}
-          <div className="flex flex-col items-center text-cyan-500">
-            <span className="text-[10px] font-mono text-slate-400">Firmware Readout</span>
-            <ArrowDown className="w-5 h-5 animate-bounce" />
+          {/* Arrow 1: SPI Link */}
+          <div className="flex flex-col items-center text-amber-400">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-amber-300">
+              SPI (4-Wire Bus)
+            </span>
+            <ArrowDown className="w-5 h-5 animate-bounce mt-1" />
           </div>
 
-          {/* Node 2: STM32 Security Authority (The Core Centerpiece) */}
+          {/* Level 2: Raspberry Pi (Detect, Read, Stream) */}
+          <button
+            onClick={() => setSelectedNode('RPI_STREAMER')}
+            className={`w-full sm:w-88 p-4 rounded-xl border text-center transition-all ${
+              selectedNode === 'RPI_STREAMER'
+                ? 'bg-indigo-950/80 border-indigo-400 shadow-lg shadow-indigo-950/50 scale-105'
+                : 'bg-slate-900/90 border-slate-700 hover:border-indigo-500'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2 text-xs font-bold text-indigo-300 uppercase">
+              <Server className="w-4 h-4 text-indigo-400" />
+              <span>Raspberry Pi (Acquisition)</span>
+            </div>
+            <div className="mt-2 text-xs text-slate-200 font-mono flex items-center justify-center gap-3">
+              <span className="text-indigo-300 font-semibold">• Detect</span>
+              <span className="text-indigo-300 font-semibold">• Read</span>
+              <span className="text-indigo-300 font-semibold">• Stream</span>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">Reads SPI flash & streams binary to STM32</p>
+          </button>
+
+          {/* Arrow 2: USB CDC Link */}
+          <div className="flex flex-col items-center text-cyan-400">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-cyan-300">
+              USB CDC (High-Speed Binary Stream)
+            </span>
+            <ArrowDown className="w-5 h-5 mt-1 animate-pulse" />
+          </div>
+
+          {/* Level 3: STM32 Security Authority (The Core Centerpiece) */}
           <button
             onClick={() => setSelectedNode('STM32')}
             className={`w-full sm:w-96 p-5 rounded-2xl border text-center transition-all relative ${
               selectedNode === 'STM32'
-                ? 'bg-emerald-950/70 border-emerald-400 glow-emerald scale-105'
+                ? 'bg-emerald-950/80 border-emerald-400 glow-emerald scale-105'
                 : 'bg-emerald-950/40 border-emerald-700/60 hover:border-emerald-500'
             }`}
           >
@@ -152,29 +186,51 @@ export function InteractiveArchitecture() {
               <ShieldCheck className="w-5 h-5 text-emerald-400" />
               <span>STM32 Verifier</span>
             </div>
-            <div className="mt-2 text-xs text-slate-300 font-mono space-y-0.5">
+            <div className="mt-2 text-xs text-slate-200 font-mono space-y-0.5">
               <p>• SHA-256 Digest Calculation</p>
-              <p>• Trusted Golden Reference Match</p>
+              <p>• Internal Golden Reference Comparison</p>
               <p className="text-emerald-400 font-bold">• Authoritative PASS / FAIL Decision</p>
             </div>
           </button>
 
-          {/* Dual Split Arrows to ESP32 and Pi */}
-          <div className="w-full max-w-lg flex items-center justify-between text-slate-400 text-[11px] font-mono px-4">
+          {/* Dual Split Arrows from STM32 */}
+          <div className="w-full max-w-xl flex items-center justify-between text-slate-400 text-[11px] font-mono px-6 pt-1">
             <div className="flex flex-col items-center">
-              <span>UART Bus</span>
-              <ArrowDown className="w-5 h-5 text-cyan-400" />
+              <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-800/80 text-indigo-300 font-semibold">
+                USB Result
+              </span>
+              <ArrowDown className="w-5 h-5 text-indigo-400 mt-1" />
             </div>
-            <div className="text-[10px] text-slate-400 italic">Independent Dual Transmission</div>
+            <div className="text-[10px] text-slate-400 font-sans italic">Dual Independent Transmission</div>
             <div className="flex flex-col items-center">
-              <span>UART / USB</span>
-              <ArrowDown className="w-5 h-5 text-indigo-400" />
+              <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800/80 text-cyan-300 font-semibold">
+                UART TX
+              </span>
+              <ArrowDown className="w-5 h-5 text-cyan-400 mt-1" />
             </div>
           </div>
 
-          {/* Level 3: ESP32 and Raspberry Pi side by side */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg">
-            {/* ESP32 */}
+          {/* Level 4: Dual Output Targets (Raspberry Pi GUI vs ESP32) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl">
+            {/* Output 1: Raspberry Pi GUI & History */}
+            <button
+              onClick={() => setSelectedNode('RPI_GUI')}
+              className={`p-4 rounded-xl border text-left transition-all ${
+                selectedNode === 'RPI_GUI'
+                  ? 'bg-indigo-950/80 border-indigo-400 shadow-lg shadow-indigo-950/50 scale-105'
+                  : 'bg-slate-900/90 border-slate-700 hover:border-indigo-600'
+              }`}
+            >
+              <div className="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase">
+                <Monitor className="w-4 h-4" />
+                <span>Raspberry Pi</span>
+              </div>
+              <p className="text-[11px] font-semibold text-slate-200 mt-1">GUI & History</p>
+              <p className="text-[10px] text-slate-400 mt-1">Local touch interface • Offline audit logs</p>
+              <p className="text-[9px] text-indigo-300 mt-1 font-mono">USB CDC Input from STM32</p>
+            </button>
+
+            {/* Output 2: ESP32 LED/Buzzer */}
             <button
               onClick={() => setSelectedNode('ESP32')}
               className={`p-4 rounded-xl border text-left transition-all ${
@@ -184,40 +240,24 @@ export function InteractiveArchitecture() {
               }`}
             >
               <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase">
-                <Wifi className="w-4 h-4" />
-                <span>ESP32 Node</span>
+                <Cpu className="w-4 h-4" />
+                <span>ESP32</span>
               </div>
-              <p className="text-[11px] font-semibold text-slate-200 mt-1">Controller & Web Uploader</p>
-              <p className="text-[10px] text-slate-400 mt-1">LEDs/Buzzer • Wi-Fi Upload</p>
-              <p className="text-[9px] text-amber-400/90 mt-1 italic font-medium">No trust decision</p>
-            </button>
-
-            {/* Raspberry Pi */}
-            <button
-              onClick={() => setSelectedNode('RASPBERRY_PI')}
-              className={`p-4 rounded-xl border text-left transition-all ${
-                selectedNode === 'RASPBERRY_PI'
-                  ? 'bg-indigo-950/80 border-indigo-400 shadow-lg shadow-indigo-950/50 scale-105'
-                  : 'bg-slate-900/90 border-slate-700 hover:border-indigo-600'
-              }`}
-            >
-              <div className="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase">
-                <Server className="w-4 h-4" />
-                <span>Raspberry Pi 3</span>
-              </div>
-              <p className="text-[11px] font-semibold text-slate-200 mt-1">FIVSED Main System</p>
-              <p className="text-[10px] text-slate-400 mt-1">Local GUI • On-premise Logs</p>
-              <p className="text-[9px] text-indigo-300 mt-1">Direct STM32 Serial Link</p>
+              <p className="text-[11px] font-semibold text-slate-200 mt-1">LED / Buzzer Controller</p>
+              <p className="text-[10px] text-slate-400 mt-1">GPIO 21 (Green), GPIO 22 (Red), GPIO 23 (Buzzer)</p>
+              <p className="text-[9px] text-amber-400/90 mt-1 italic font-medium">UART RX from STM32 • No trust decision</p>
             </button>
           </div>
 
-          {/* Arrow from ESP32 to Web App */}
+          {/* Arrow from ESP32 down to Web Application */}
           <div className="flex flex-col items-center text-cyan-400 pt-1">
-            <span className="text-[10px] font-mono text-cyan-300">Wi-Fi (HTTPS REST POST /api/events)</span>
-            <ArrowDown className="w-5 h-5 animate-pulse" />
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-cyan-300">
+              Wi-Fi (HTTPS REST POST /api/events)
+            </span>
+            <ArrowDown className="w-5 h-5 animate-pulse mt-1" />
           </div>
 
-          {/* Level 4: FIVSED Web Application */}
+          {/* Level 5: FIVSED Web Application */}
           <button
             onClick={() => setSelectedNode('WEB_APP')}
             className={`w-full sm:w-96 p-4 rounded-xl border text-center transition-all ${
@@ -228,32 +268,10 @@ export function InteractiveArchitecture() {
           >
             <div className="flex items-center justify-center gap-2 text-xs font-bold text-white uppercase">
               <Monitor className="w-4 h-4 text-cyan-400" />
-              <span>FIVSED Web Application</span>
+              <span>Web Application</span>
             </div>
-            <p className="text-[11px] text-cyan-300 mt-0.5">Remote Monitoring & SOC Dashboard</p>
-            <p className="text-[10px] text-slate-400 mt-1">Dashboard • Alerts • Timeline • History</p>
-          </button>
-
-          {/* Arrow to Supabase */}
-          <div className="flex flex-col items-center text-emerald-400">
-            <span className="text-[10px] font-mono text-slate-400">Database & Realtime WebSockets</span>
-            <ArrowDown className="w-5 h-5" />
-          </div>
-
-          {/* Level 5: Supabase */}
-          <button
-            onClick={() => setSelectedNode('SUPABASE')}
-            className={`w-72 p-4 rounded-xl border text-center transition-all ${
-              selectedNode === 'SUPABASE'
-                ? 'bg-emerald-950/80 border-emerald-400 shadow-lg shadow-emerald-950/50 scale-105'
-                : 'bg-slate-900/90 border-slate-700 hover:border-emerald-600'
-            }`}
-          >
-            <div className="flex items-center justify-center gap-2 text-xs font-bold text-emerald-400 uppercase">
-              <Database className="w-4 h-4" />
-              <span>Supabase Cloud</span>
-            </div>
-            <p className="text-[11px] text-slate-300 mt-0.5">PostgreSQL • Auth • Realtime</p>
+            <p className="text-[11px] text-cyan-300 mt-0.5 font-semibold">Remote SOC Dashboard & Realtime Monitoring</p>
+            <p className="text-[10px] text-slate-400 mt-1">Real-time Telemetry • Verification Timeline • Incident Alerts</p>
           </button>
         </div>
       </div>
