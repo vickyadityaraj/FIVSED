@@ -57,12 +57,22 @@ export function FIVSEDProvider({ children }: { children: React.ReactNode }) {
 
   const latestVerification = verifications.length > 0 ? verifications[0] : null;
   const activeAlertsCount = alerts.filter(a => a.status === 'ACTIVE').length;
-  const lastPacketTime = latestVerification ? new Date(latestVerification.verified_at).getTime() : 0;
+
+  // Find the latest telemetry packet time across verifications, heartbeat events, and device last_seen
+  const latestVerificationTime = latestVerification ? new Date(latestVerification.verified_at).getTime() : 0;
+  const latestEventTime = events.length > 0 ? new Date(events[0].created_at).getTime() : 0;
+  const latestDeviceSeenTime = devices.reduce(
+    (max, d) => Math.max(max, d.last_seen ? new Date(d.last_seen).getTime() : 0), 
+    0
+  );
+
+  const lastPacketTime = Math.max(latestVerificationTime, latestEventTime, latestDeviceSeenTime);
   const secondsSinceLastPacket = lastPacketTime > 0 ? Math.max(0, Math.floor((now - lastPacketTime) / 1000)) : null;
 
-  // STRICT DYNAMIC HEARTBEAT:
-  // Hardware transmits every 30 seconds. If no packet received within 45 seconds, hardware is OFFLINE.
-  const isHardwareConnected = lastPacketTime > 0 && (now - lastPacketTime) < 45000;
+  // DYNAMIC HEARTBEAT:
+  // Hardware transmits every 15-30s. If any packet/heartbeat received within 45s or any device status is ONLINE:
+  const isHardwareConnected = (lastPacketTime > 0 && (now - lastPacketTime) < 45000) ||
+    devices.some(d => d.status === 'ONLINE' || d.status === 'WARNING');
 
   const refreshData = useCallback(async () => {
     try {
