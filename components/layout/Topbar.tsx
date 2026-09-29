@@ -24,7 +24,9 @@ export function Topbar({
 }: TopbarProps) {
   const { 
     lastSync, 
-    isHardwareConnected, 
+    isHardwareConnected,
+    stm32Active,
+    piActive, 
     secondsSinceLastPacket,
     refreshData,
     clearAllData
@@ -86,10 +88,8 @@ export function Topbar({
           }`}
           title={
             isHardwareConnected 
-              ? `Hardware is actively transmitting telemetry. Last scan received ${secondsSinceLastPacket ?? 0}s ago.` 
-              : secondsSinceLastPacket !== null 
-                ? `Hardware is offline. Last scan was received ${secondsSinceLastPacket}s ago.`
-                : 'Hardware is offline. Awaiting connection from ESP32.'
+              ? `ESP32 Streaming (${secondsSinceLastPacket ?? 0}s ago) • STM32: ${stm32Active ? 'ACTIVE' : 'DISCONNECTED'} • Pi: ${piActive ? 'ACTIVE' : 'NOT DETECTED'}` 
+              : 'Hardware is offline. Awaiting connection from ESP32.'
           }
         >
           <span className="relative flex h-2 w-2">
@@ -100,7 +100,7 @@ export function Topbar({
           </span>
           <span className="font-semibold hidden sm:inline">
             {isHardwareConnected 
-              ? `Hardware Active (${secondsSinceLastPacket ?? 0}s)` 
+              ? `Telemetry Streaming (${secondsSinceLastPacket ?? 0}s)` 
               : 'Hardware Offline'}
           </span>
         </div>

@@ -75,36 +75,8 @@ export function recordIngestedEvent(payload: {
   const isFailure = payload.status === 'FAIL' || payload.event === 'HASH_MISMATCH';
   const isPass = payload.status === 'PASS';
 
-  // 1. Ensure STM32 device is registered when telemetry arrives
-  let targetDevice = store.devices.find(d => d.device_id === payload.device_id);
-  if (!targetDevice) {
-    targetDevice = {
-      id: `dev-${payload.device_id.toLowerCase()}`,
-      device_id: payload.device_id,
-      device_type: payload.device_id.includes('002') ? 'ESP32' : payload.device_id.includes('003') ? 'RASPBERRY_PI' : 'STM32',
-      device_name: payload.device_id === 'FIVSED-001' ? 'STM32F407 Security Verifier' : payload.device_id === 'FIVSED-002' ? 'ESP32-WROOM-32 Node' : 'Raspberry Pi 3 Model B+',
-      role_title: payload.device_id === 'FIVSED-001' ? 'Security Authority' : payload.device_id === 'FIVSED-002' ? 'Controller & Web Uploader' : 'FIVSED Main System',
-      role_description: payload.device_id === 'FIVSED-001' 
-        ? 'Authoritative firmware integrity verifier. Measures protected target firmware, computes SHA-256, and generates PASS/FAIL decisions.' 
-        : payload.device_id === 'FIVSED-002'
-        ? 'Receives STM32 verification results over UART, drives physical indicators, and uploads to web app via Wi-Fi. (Does NOT determine trust)'
-        : 'Runs on-premise local operator interface and logs.',
-      status: isFailure ? 'WARNING' : 'ONLINE',
-      communication_method: payload.device_id === 'FIVSED-001' ? 'Direct Internal HW Bus / Dual UART' : 'Wi-Fi 802.11 b/g/n',
-      verification_interval_minutes: 10,
-      last_seen: eventTime,
-      created_at: eventTime,
-      updated_at: eventTime,
-      is_security_authority: payload.device_id === 'FIVSED-001'
-    };
-    store.devices.push(targetDevice);
-  } else {
-    targetDevice.last_seen = eventTime;
-    targetDevice.status = isFailure ? 'WARNING' : 'ONLINE';
-    targetDevice.updated_at = eventTime;
-  }
-
-  // Also ensure ESP32 uploader is registered as active
+  // 1. Maintain dynamic registration and liveness of all 3 hardware architectural nodes
+  // Device 1: ESP32-WROOM-32 Telemetry & Controller Node
   let esp32 = store.devices.find(d => d.device_type === 'ESP32');
   if (!esp32) {
     esp32 = {
@@ -115,7 +87,6 @@ export function recordIngestedEvent(payload: {
       role_title: 'Controller & Web Uploader',
       role_description: 'Receives authoritative verification results from STM32 over UART, controls physical indicator LEDs and buzzer, and uploads verification records/security events to the FIVSED Web App over Wi-Fi.',
       status: 'ONLINE',
-      ip_address: '192.168.1.142',
       communication_method: 'Wi-Fi 802.11 b/g/n (HTTPS REST to Next.js API)',
       verification_interval_minutes: 10,
       last_seen: eventTime,
@@ -127,17 +98,81 @@ export function recordIngestedEvent(payload: {
   } else {
     esp32.last_seen = eventTime;
     esp32.status = 'ONLINE';
+    esp32.updated_at = eventTime;
   }
 
-  // 2. Record verification scan report if applicable
+  // Device 2: STM32F407 Security Authority
+  const stm32ActiveInHeartbeat = payload.event === 'COMPONENT_HEARTBEAT' 
+    ? Boolean(payload.metadata?.stm32_active) 
+    : true;
+  let stm32 = store.devices.find(d => d.device_id === 'FIVSED-001' || d.device_type === 'STM32');
+  if (!stm32) {
+    stm32 = {
+      id: 'dev-fivsed-001',
+      device_id: 'FIVSED-001',
+      device_type: 'STM32',
+      device_name: 'STM32F407 Security Verifier',
+      role_title: 'Security Authority',
+      role_description: 'Authoritative firmware integrity verifier. Measures target firmware locally, computes SHA-256 on-chip, compares against trusted golden reference internally, and transmits decision with HMAC.',
+      status: stm32ActiveInHeartbeat ? 'ONLINE' : 'OFFLINE',
+      communication_method: 'Direct Hardware Bus / Dual UART',
+      verification_interval_minutes: 10,
+      last_seen: stm32ActiveInHeartbeat ? eventTime : new Date(0).toISOString(),
+      created_at: eventTime,
+      updated_at: eventTime,
+      is_security_authority: true
+    };
+    store.devices.push(stm32);
+  } else {
+    if (stm32ActiveInHeartbeat) {
+      stm32.last_seen = eventTime;
+      stm32.status = isFailure ? 'WARNING' : 'ONLINE';
+    } else if (payload.event === 'COMPONENT_HEARTBEAT') {
+      stm32.status = 'OFFLINE';
+    }
+    stm32.updated_at = eventTime;
+  }
+
+  // Device 3: Raspberry Pi 3 Model B+ (Main System)
+  const piActiveInHeartbeat = payload.event === 'COMPONENT_HEARTBEAT'
+    ? Boolean(payload.metadata?.raspberry_pi_active)
+    : false;
+  let pi = store.devices.find(d => d.device_id === 'FIVSED-003' || d.device_type === 'RASPBERRY_PI');
+  if (!pi) {
+    pi = {
+      id: 'dev-fivsed-003',
+      device_id: 'FIVSED-003',
+      device_type: 'RASPBERRY_PI',
+      device_name: 'Raspberry Pi 3 Model B+',
+      role_title: 'FIVSED Main System',
+      role_description: 'Runs on-premise local operator interface and system supervisory telemetry.',
+      status: piActiveInHeartbeat ? 'ONLINE' : 'OFFLINE',
+      communication_method: 'Internal Bus / UART',
+      verification_interval_minutes: 10,
+      last_seen: piActiveInHeartbeat ? eventTime : new Date(0).toISOString(),
+      created_at: eventTime,
+      updated_at: eventTime,
+      is_security_authority: false
+    };
+    store.devices.push(pi);
+  } else {
+    if (piActiveInHeartbeat) {
+      pi.last_seen = eventTime;
+      pi.status = 'ONLINE';
+    } else if (payload.event === 'COMPONENT_HEARTBEAT') {
+      pi.status = 'OFFLINE';
+    }
+    pi.updated_at = eventTime;
+  }
+
+  // 2. Record verification scan report if applicable (from authoritative STM32 frame)
   let newVerification: FirmwareVerification | undefined;
   if (payload.verification_id) {
     newVerification = {
       id: `ver-${Date.now()}-${payload.verification_id}`,
       verification_id: payload.verification_id,
       device_id: payload.device_id,
-      current_hash: payload.current_hash || 'UNKNOWN_DIGEST',
-      reference_hash: payload.reference_hash || payload.current_hash || 'UNKNOWN_DIGEST',
+      stm32_hmac: (payload.metadata?.stm32_hmac as string) || undefined,
       status: payload.status,
       verification_result: isFailure ? 'HASH_MISMATCH' : 'INTEGRITY_PASS',
       verification_duration_ms: payload.verification_duration_ms || 390,
@@ -145,8 +180,8 @@ export function recordIngestedEvent(payload: {
       created_at: eventTime,
       source: 'STM32',
       notes: payload.message || (isPass 
-        ? 'Periodic firmware verification cycle completed. SHA-256 matches trusted reference.' 
-        : 'Firmware integrity verification failed because the measured hash did not match the trusted reference on ' + payload.device_id + '.')
+        ? 'Authoritative firmware integrity verified on-chip by STM32 Security Authority. Decision: MATCH.' 
+        : 'Authoritative firmware integrity mismatch detected on-chip by STM32 Security Authority. Decision: HASH_MISMATCH.')
     };
     store.verifications.unshift(newVerification);
   }
@@ -160,7 +195,9 @@ export function recordIngestedEvent(payload: {
     status: payload.status,
     severity: calcSeverity,
     message: payload.message || (isFailure 
-      ? `Firmware integrity verification failed because the measured hash did not match the trusted reference on ${payload.device_id} (Verification #${payload.verification_id || 'N/A'}).`
+      ? `Authoritative firmware integrity verification failed on target ${payload.device_id} (Verification #${payload.verification_id || 'N/A'}).`
+      : payload.event === 'COMPONENT_HEARTBEAT'
+      ? `Heartbeat liveness received: ESP32=ACTIVE STM32=${stm32ActiveInHeartbeat ? 'ACTIVE' : 'DISCONNECTED'} PI=${piActiveInHeartbeat ? 'ACTIVE' : 'NOT_DETECTED'}`
       : `Firmware verification cycle #${payload.verification_id || 'N/A'} completed on ${payload.device_id}: ${payload.status}`),
     verification_id: payload.verification_id,
     metadata: payload.metadata || {},

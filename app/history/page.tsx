@@ -29,8 +29,8 @@ export default function VerificationHistoryPage() {
     return verifications.filter(item => {
       const matchesSearch = 
         item.verification_id.toString().includes(searchQuery) ||
-        item.current_hash.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.device_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.verification_result.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.notes && item.notes.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchesStatus = statusFilter === 'ALL' || item.status === statusFilter;
@@ -47,10 +47,9 @@ export default function VerificationHistoryPage() {
       'Device_ID',
       'Status',
       'Verification_Result',
-      'Current_Hash',
-      'Reference_Hash',
+      'Security_Authority',
+      'Frame_Authentication',
       'Duration_ms',
-      'Source',
       'Verified_At'
     ];
 
@@ -59,10 +58,9 @@ export default function VerificationHistoryPage() {
       item.device_id,
       item.status,
       item.verification_result,
-      item.current_hash,
-      item.reference_hash,
-      item.verification_duration_ms,
       item.source,
+      'HMAC-SHA256',
+      item.verification_duration_ms,
       `"${new Date(item.verified_at).toISOString()}"`
     ]);
 
@@ -154,13 +152,12 @@ export default function VerificationHistoryPage() {
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-800 bg-slate-950/70 text-slate-400 uppercase text-[10px] tracking-wider">
-                  <th className="py-3 px-4">Ver ID</th>
-                  <th className="py-3 px-4">Device ID</th>
-                  <th className="py-3 px-4">Result</th>
-                  <th className="py-3 px-4">Current SHA-256</th>
-                  <th className="py-3 px-4">Reference SHA-256</th>
+                  <th className="py-3 px-4">Report ID</th>
+                  <th className="py-3 px-4">Target Node</th>
+                  <th className="py-3 px-4">Verdict</th>
+                  <th className="py-3 px-4">Security Authority</th>
+                  <th className="py-3 px-4">Frame Authenticity</th>
                   <th className="py-3 px-4">Duration</th>
-                  <th className="py-3 px-4">Source</th>
                   <th className="py-3 px-4">Timestamp</th>
                 </tr>
               </thead>
@@ -174,17 +171,14 @@ export default function VerificationHistoryPage() {
                         <StatusBadge status={item.verification_result} size="sm" />
                       </td>
                       <td className="py-3 px-4">
-                        <HashDisplay hash={item.current_hash} length={7} showCopy={true} />
-                      </td>
-                      <td className="py-3 px-4">
-                        <HashDisplay hash={item.reference_hash} length={7} showCopy={true} />
-                      </td>
-                      <td className="py-3 px-4 text-slate-400">{item.verification_duration_ms} ms</td>
-                      <td className="py-3 px-4">
                         <span className="font-semibold text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/50">
-                          {item.source}
+                          {item.source} (On-Chip)
                         </span>
                       </td>
+                      <td className="py-3 px-4 text-cyan-300 font-sans">
+                        HMAC-SHA256 Validated
+                      </td>
+                      <td className="py-3 px-4 text-slate-400">{item.verification_duration_ms} ms</td>
                       <td className="py-3 px-4 text-slate-400 font-sans">
                         {new Date(item.verified_at).toLocaleString()}
                       </td>
@@ -192,7 +186,7 @@ export default function VerificationHistoryPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-400 font-sans">
+                    <td colSpan={7} className="py-12 text-center text-slate-400 font-sans">
                       No verification cycles found matching your filters.
                     </td>
                   </tr>

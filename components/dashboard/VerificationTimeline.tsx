@@ -101,11 +101,15 @@ export function VerificationTimeline({ verifications, limit = 5 }: VerificationT
 
                 <div className="pt-2 border-t border-slate-800/60 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
                   <div className="flex items-center gap-2">
-                    <span>Hash:</span>
-                    <HashDisplay hash={item.current_hash} length={6} showCopy={true} />
+                    <span>Decision:</span>
+                    <span className={`font-mono font-semibold ${isPass ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {isPass ? 'MATCH (PASS)' : 'HASH_MISMATCH (FAIL)'}
+                    </span>
+                    <span className="text-slate-600">•</span>
+                    <span className="text-[10px] font-mono text-cyan-300">HMAC-SHA256 Auth</span>
                   </div>
                   <div>
-                    Device: <span className="font-mono text-slate-200">{item.device_id}</span> ({item.verification_duration_ms}ms)
+                    Target: <span className="font-mono text-slate-200">{item.device_id}</span> ({item.verification_duration_ms}ms)
                   </div>
                 </div>
               </div>

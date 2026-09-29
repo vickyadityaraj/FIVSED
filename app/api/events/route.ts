@@ -160,26 +160,52 @@ export async function POST(req: NextRequest) {
     // 4. Record to Supabase if configured
     const supabase = getServerSupabase();
     if (supabase) {
-      // Upsert device accurately as the ESP32 node
-      const { error: devErr } = await supabase.from('devices').upsert({
-        device_id,
+      const stm32Active = metadata.stm32_active === true;
+      const piActive = metadata.raspberry_pi_active === true;
+
+      // Upsert ESP32 Node
+      await supabase.from('devices').upsert({
+        device_id: 'FIVSED-002',
         device_type: 'ESP32',
-        device_name: `ESP32 Wi-Fi Node (${device_id})`,
+        device_name: 'ESP32 Wi-Fi Node (FIVSED-002)',
         role_title: 'Telemetry Uplink Node',
-        role_description: 'Active ESP32 Wi-Fi telemetry uplink streaming firmware verification scan reports',
+        role_description: 'Active ESP32 Wi-Fi telemetry uplink streaming firmware verification scan reports and heartbeats',
         status: isFailure ? 'WARNING' : 'ONLINE',
         communication_method: 'Wi-Fi / HTTPS REST API',
         last_seen: eventTime
       }, { onConflict: 'device_id' });
-      if (devErr) console.error('Supabase device upsert error:', devErr);
+
+      // Upsert STM32 Security Authority
+      await supabase.from('devices').upsert({
+        device_id: 'FIVSED-001',
+        device_type: 'STM32',
+        device_name: 'STM32F407 Security Verifier (FIVSED-001)',
+        role_title: 'Security Authority',
+        role_description: 'Authoritative firmware integrity verifier. Measures target firmware, computes SHA-256 on-chip, and checks internal reference.',
+        status: (stm32Active || isIntegrityEvent) ? (isFailure ? 'WARNING' : 'ONLINE') : 'OFFLINE',
+        communication_method: 'Direct Hardware Bus / Dual UART',
+        last_seen: (stm32Active || isIntegrityEvent) ? eventTime : new Date(0).toISOString()
+      }, { onConflict: 'device_id' });
+
+      // Upsert Raspberry Pi Main System
+      await supabase.from('devices').upsert({
+        device_id: 'FIVSED-003',
+        device_type: 'RASPBERRY_PI',
+        device_name: 'Raspberry Pi 3 Model B+ (FIVSED-003)',
+        role_title: 'FIVSED Main System',
+        role_description: 'Runs on-premise local operator interface and system supervisory telemetry.',
+        status: piActive ? 'ONLINE' : 'OFFLINE',
+        communication_method: 'Internal Bus / UART',
+        last_seen: piActive ? eventTime : new Date(0).toISOString()
+      }, { onConflict: 'device_id' });
 
       // Record scan report
       if (isIntegrityEvent && verification_id) {
         const { error: verErr } = await supabase.from('firmware_verifications').insert({
           verification_id,
           device_id,
-          current_hash: current_hash || 'UNKNOWN_DIGEST',
-          reference_hash: reference_hash || 'UNKNOWN_DIGEST',
+          current_hash: current_hash || 'STM32_ONCHIP_PROTECTED',
+          reference_hash: reference_hash || 'STM32_ONCHIP_PROTECTED',
           status,
           verification_result: isFailure ? 'HASH_MISMATCH' : 'INTEGRITY_PASS',
           verification_duration_ms: verification_duration_ms || 390,
@@ -193,7 +219,9 @@ export async function POST(req: NextRequest) {
       const calculatedSeverity = severity || (isFailure ? 'CRITICAL' : status === 'ERROR' ? 'HIGH' : 'INFO');
       const eventMessage = message || (
         isFailure 
-          ? `Firmware integrity verification failed because the measured hash did not match the trusted reference on ${device_id} (Verification #${verification_id || 'N/A'}).`
+          ? `Authoritative firmware integrity verification failed on target ${device_id} (Verification #${verification_id || 'N/A'}).`
+          : event === 'COMPONENT_HEARTBEAT'
+          ? `Liveness heartbeat recorded: ESP32=ACTIVE STM32=${stm32Active ? 'ACTIVE' : 'DISCONNECTED'} PI=${piActive ? 'ACTIVE' : 'NOT_DETECTED'}`
           : `Periodic firmware verification cycle completed on ${device_id}: Result=${status}`
       );
 

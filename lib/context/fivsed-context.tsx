@@ -10,9 +10,6 @@ import {
 } from '@/types/fivsed';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 
-export const GOLDEN_REFERENCE_HASH = '8f4a7c1b5e2d9a03b6e8d1f4c7a2b5e8d1f4c7a2b5e8d1f4c7a2b5e8d1f4c7a2';
-export const TAMPERED_HASH = '9c2b4d8e1f0a5b7c3e9a1d2f4b6c8e0a2d4f6b8c0e2a4d6f8a0b2d4e6f8a0b2c';
-
 interface FIVSEDContextType {
   devices: Device[];
   verifications: FirmwareVerification[];
@@ -23,6 +20,9 @@ interface FIVSEDContextType {
   lastSync: Date;
   isRealtimeConnected: boolean;
   isHardwareConnected: boolean;
+  stm32Active: boolean;
+  piActive: boolean;
+  esp32Active: boolean;
   secondsSinceLastPacket: number | null;
   isLoading: boolean;
   isSimulating: boolean;
@@ -197,11 +197,18 @@ export function FIVSEDProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const stm32Device = devices.find(d => d.device_type === 'STM32' || d.device_id === 'FIVSED-001');
+  const piDevice = devices.find(d => d.device_type === 'RASPBERRY_PI' || d.device_id === 'FIVSED-003');
+  const esp32Device = devices.find(d => d.device_type === 'ESP32' || d.device_id === 'FIVSED-002');
+
+  const stm32Active = Boolean(stm32Device && stm32Device.status !== 'OFFLINE');
+  const piActive = Boolean(piDevice && piDevice.status !== 'OFFLINE');
+  const esp32Active = isHardwareConnected;
+
   const triggerSimulatedVerification = async (type: 'PASS' | 'FAIL') => {
     setIsSimulating(true);
     const nextVerId = (latestVerification?.verification_id || 40) + 1;
     const isPass = type === 'PASS';
-    const currentHash = isPass ? GOLDEN_REFERENCE_HASH : TAMPERED_HASH;
 
     try {
       await fetch('/api/events', {
@@ -215,13 +222,11 @@ export function FIVSEDProvider({ children }: { children: React.ReactNode }) {
           event: isPass ? 'FIRMWARE_VERIFICATION' : 'HASH_MISMATCH',
           status: type,
           verification_id: nextVerId,
-          current_hash: currentHash,
-          reference_hash: GOLDEN_REFERENCE_HASH,
           verification_duration_ms: Math.floor(380 + Math.random() * 30),
           severity: isPass ? 'INFO' : 'CRITICAL',
           message: isPass 
-            ? `Periodic firmware verification cycle #${nextVerId} completed: SHA-256 match confirmed.`
-            : `Firmware integrity verification failed because the measured hash did not match the trusted reference on FIVSED-001 (Verification #${nextVerId}).`
+            ? `Authoritative firmware integrity verified on-chip by STM32 Security Authority. Decision: MATCH (Verification #${nextVerId}).`
+            : `Authoritative firmware integrity mismatch detected on-chip by STM32 Security Authority. Decision: HASH_MISMATCH (Verification #${nextVerId}).`
         })
       });
       await refreshData();
@@ -243,6 +248,9 @@ export function FIVSEDProvider({ children }: { children: React.ReactNode }) {
       lastSync,
       isRealtimeConnected,
       isHardwareConnected,
+      stm32Active,
+      piActive,
+      esp32Active,
       secondsSinceLastPacket,
       isLoading,
       isSimulating,

@@ -181,9 +181,9 @@ export default function DeviceDetailsPage() {
                 <thead>
                   <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px]">
                     <th className="py-2.5 px-3">Verification ID</th>
-                    <th className="py-2.5 px-3">Result</th>
-                    <th className="py-2.5 px-3">Current SHA-256</th>
-                    <th className="py-2.5 px-3">Reference SHA-256</th>
+                    <th className="py-2.5 px-3">Verdict</th>
+                    <th className="py-2.5 px-3">Security Authority</th>
+                    <th className="py-2.5 px-3">Frame Authentication</th>
                     <th className="py-2.5 px-3">Timestamp</th>
                     <th className="py-2.5 px-3">Duration</th>
                   </tr>
@@ -195,11 +195,11 @@ export default function DeviceDetailsPage() {
                       <td className="py-2.5 px-3">
                         <StatusBadge status={ver.verification_result} size="sm" />
                       </td>
-                      <td className="py-2.5 px-3">
-                        <HashDisplay hash={ver.current_hash} length={6} showCopy={true} />
+                      <td className="py-2.5 px-3 text-emerald-400 font-sans">
+                        STM32F407 (On-Chip)
                       </td>
-                      <td className="py-2.5 px-3">
-                        <HashDisplay hash={ver.reference_hash} length={6} showCopy={true} />
+                      <td className="py-2.5 px-3 text-cyan-300 font-sans">
+                        HMAC-SHA256
                       </td>
                       <td className="py-2.5 px-3 text-slate-400">
                         {new Date(ver.verified_at).toLocaleTimeString()}

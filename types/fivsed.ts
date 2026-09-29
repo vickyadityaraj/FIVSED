@@ -63,8 +63,9 @@ export interface FirmwareVerification {
   id: string;
   verification_id: number;
   device_id: string;
-  current_hash: string;
-  reference_hash: string;
+  current_hash?: string;
+  reference_hash?: string;
+  stm32_hmac?: string;
   status: VerificationStatus;
   verification_result: VerificationResult;
   verification_duration_ms: number;

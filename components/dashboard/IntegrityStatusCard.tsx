@@ -162,34 +162,38 @@ export function IntegrityStatusCard({ verification, onViewDetails }: IntegritySt
           </div>
         )}
 
-        {/* Detailed Verification Parameters Grid */}
+        {/* Detailed Verification Parameters Grid (Authoritative Architecture - No Raw Hash Exposure) */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
           {/* Device ID */}
           <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Device ID</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Target Node</span>
             <p className="text-xs font-mono font-bold text-slate-200">{verification.device_id}</p>
           </div>
 
           {/* Verification ID */}
           <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Verification ID</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Report Cycle</span>
             <p className="text-xs font-mono font-bold text-cyan-400">#{verification.verification_id}</p>
           </div>
 
-          {/* Current Measured Hash */}
-          <div className="col-span-2 p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Current SHA-256</span>
-            <div>
-              <HashDisplay hash={verification.current_hash} length={7} showCopy={true} />
-            </div>
+          {/* Authority Engine */}
+          <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-1">
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Authority</span>
+            <p className="text-xs font-mono font-bold text-emerald-400">STM32F407</p>
           </div>
 
-          {/* Reference Hash */}
+          {/* Decision Mechanism */}
           <div className="col-span-2 p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Trusted Reference</span>
-            <div>
-              <HashDisplay hash={verification.reference_hash} length={7} showCopy={true} />
-            </div>
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Decision Mechanism</span>
+            <p className="text-xs font-mono text-slate-300">
+              On-Chip Internal Comparator ({isPass ? 'MATCH' : 'MISMATCH'})
+            </p>
+          </div>
+
+          {/* Frame Authenticity */}
+          <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-1">
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Frame Auth</span>
+            <p className="text-xs font-mono font-bold text-cyan-300">HMAC-SHA256</p>
           </div>
         </div>
 

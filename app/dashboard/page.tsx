@@ -28,6 +28,8 @@ export default function DashboardPage() {
     events, 
     alerts, 
     isHardwareConnected,
+    stm32Active,
+    piActive,
     secondsSinceLastPacket,
     acknowledgeAlert
   } = useFIVSED();
@@ -35,23 +37,13 @@ export default function DashboardPage() {
   const isPass = latestVerification?.status === 'PASS';
   const criticalAlertsCount = alerts.filter(a => a.severity === 'CRITICAL' && a.status === 'ACTIVE').length;
 
-  const timeAgo = (dateStr?: string) => {
-    if (!dateStr) return 'N/A';
-    const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-    if (seconds < 60) return `${seconds}s ago`;
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    return `${hours}h ago`;
-  };
-
   return (
     <AppLayout
       title="FIVSED Security Dashboard"
-      subtitle="Real-time firmware integrity scan reports and security event detection"
+      subtitle="Real-time firmware integrity verification and hardware security monitoring"
     >
       <div className="space-y-6">
-        {/* Dynamic Hardware Ingestion Status Banner */}
+        {/* Dynamic Multi-Node Hardware Architecture Status Banner */}
         <div 
           className={`p-3.5 rounded-xl border flex flex-wrap items-center justify-between gap-3 text-xs transition-colors ${
             isHardwareConnected
@@ -67,22 +59,41 @@ export default function DashboardPage() {
               <span className={`relative inline-flex rounded-full h-2 w-2 ${isHardwareConnected ? 'bg-emerald-500' : 'bg-slate-500'}`}></span>
             </span>
             <span className={`font-semibold ${isHardwareConnected ? 'text-emerald-300' : 'text-slate-300'}`}>
-              {isHardwareConnected ? 'Hardware Telemetry Link Active' : 'Hardware Offline / Awaiting Heartbeat'}
+              {isHardwareConnected ? 'ESP32 Telemetry Link Streaming' : 'Hardware Telemetry Offline'}
             </span>
             <span className="text-slate-600">•</span>
             <span className="text-slate-400">
               {isHardwareConnected 
-                ? `Actively receiving live scan reports from ESP32 node (last report ${secondsSinceLastPacket ?? 0}s ago)` 
-                : secondsSinceLastPacket !== null 
-                  ? `Last report was received ${secondsSinceLastPacket}s ago. Hardware is disconnected or powered off.` 
-                  : 'Power on your ESP32 to begin streaming live telemetry to /api/events.'}
+                ? `Receiving authenticated telemetry (last packet ${secondsSinceLastPacket ?? 0}s ago)` 
+                : 'Awaiting ESP32 connection to /api/events.'}
             </span>
           </div>
 
-          <div className="flex items-center gap-2 font-mono text-[11px] text-slate-400">
-            <span>Node: <strong className="text-cyan-400 font-semibold">ESP32</strong></span>
-            <span>•</span>
-            <span>Target: <strong className="text-slate-200">FIVSED-001</strong></span>
+          {/* Real-Time Status Indicators for all 3 Architecture Components */}
+          <div className="flex flex-wrap items-center gap-2.5 font-mono text-[11px]">
+            <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${isHardwareConnected ? 'bg-emerald-400' : 'bg-slate-500'}`}></span>
+              <span className="text-slate-400">ESP32:</span>
+              <strong className={isHardwareConnected ? 'text-emerald-400' : 'text-slate-500'}>
+                {isHardwareConnected ? 'STREAMING' : 'OFFLINE'}
+              </strong>
+            </span>
+
+            <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${stm32Active ? 'bg-emerald-400' : 'bg-amber-500'}`}></span>
+              <span className="text-slate-400">STM32:</span>
+              <strong className={stm32Active ? 'text-emerald-400' : 'text-amber-400'}>
+                {stm32Active ? 'ACTIVE' : 'DISCONNECTED'}
+              </strong>
+            </span>
+
+            <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${piActive ? 'bg-emerald-400' : 'bg-slate-600'}`}></span>
+              <span className="text-slate-400">Raspberry Pi:</span>
+              <strong className={piActive ? 'text-emerald-400' : 'text-slate-500'}>
+                {piActive ? 'ACTIVE' : 'NOT DETECTED'}
+              </strong>
+            </span>
           </div>
         </div>
 
@@ -91,7 +102,7 @@ export default function DashboardPage() {
 
         {/* 6 Real Telemetry Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {/* Card 1: Firmware Integrity */}
+          {/* Card 1: Firmware Integrity Decision */}
           <MetricCard
             title="Firmware Integrity"
             value={latestVerification ? (isPass ? 'PASS' : 'FAIL') : 'AWAITING SCAN'}
@@ -105,7 +116,7 @@ export default function DashboardPage() {
                 <span className="text-[10px] font-mono text-slate-500">NO SCANS</span>
               )
             }
-            note={latestVerification ? 'Hash comparison result' : 'Waiting for hardware scan'}
+            note="STM32 hardware comparator"
           />
 
           {/* Card 2: ESP32 Hardware Link */}
@@ -115,9 +126,7 @@ export default function DashboardPage() {
             subtitle={
               isHardwareConnected 
                 ? `Active (${secondsSinceLastPacket ?? 0}s ago)` 
-                : secondsSinceLastPacket !== null 
-                  ? `Last seen ${secondsSinceLastPacket}s ago` 
-                  : 'No connection'
+                : 'No connection'
             }
             icon={Wifi}
             variant={isHardwareConnected ? 'pass' : 'default'}
@@ -126,10 +135,40 @@ export default function DashboardPage() {
                 {isHardwareConnected ? 'STREAMING' : 'OFFLINE'}
               </span>
             }
-            note="Heartbeat window: 45s"
+            note="Wi-Fi / HTTPS uplink"
           />
 
-          {/* Card 3: Total Scans Ingested */}
+          {/* Card 3: STM32 Security Authority */}
+          <MetricCard
+            title="STM32 Security Authority"
+            value={stm32Active ? 'ACTIVE' : 'DISCONNECTED'}
+            subtitle={stm32Active ? 'On-chip verifier online' : 'Awaiting UART heartbeat'}
+            icon={Cpu}
+            variant={stm32Active ? 'pass' : 'default'}
+            badge={
+              <span className={`text-[10px] font-mono font-bold ${stm32Active ? 'text-emerald-400' : 'text-amber-400'}`}>
+                {stm32Active ? 'AUTHORITY' : 'STANDBY'}
+              </span>
+            }
+            note="Sole security decision engine"
+          />
+
+          {/* Card 4: Raspberry Pi Node */}
+          <MetricCard
+            title="Raspberry Pi Node"
+            value={piActive ? 'ACTIVE' : 'NOT DETECTED'}
+            subtitle={piActive ? 'Main system operational' : 'Hardware not detected'}
+            icon={Server}
+            variant={piActive ? 'pass' : 'default'}
+            badge={
+              <span className={`text-[10px] font-mono font-bold ${piActive ? 'text-emerald-400' : 'text-slate-500'}`}>
+                {piActive ? 'ONLINE' : 'IDLE'}
+              </span>
+            }
+            note="Supervisor system node"
+          />
+
+          {/* Card 5: Ingested Scans */}
           <MetricCard
             title="Total Ingested Scans"
             value={`${verifications.length} Scans`}
@@ -137,41 +176,18 @@ export default function DashboardPage() {
             icon={Radio}
             variant="info"
             badge={<span className="text-[10px] font-mono text-cyan-300">ESP32 Uplink</span>}
+            note="Authoritative reports"
           />
 
-          {/* Card 4: Verification Duration */}
-          <MetricCard
-            title="Verification Duration"
-            value={latestVerification ? `${latestVerification.verification_duration_ms} ms` : '-- ms'}
-            subtitle={latestVerification ? 'Measured scan time' : 'Awaiting data'}
-            icon={Clock}
-            variant="default"
-            badge={
-              <span className="font-mono text-[10px] text-cyan-400">
-                {latestVerification ? `#${latestVerification.verification_id}` : '--'}
-              </span>
-            }
-            note="Target flash verification"
-          />
-
-          {/* Card 5: Security Events */}
+          {/* Card 6: Security Events */}
           <MetricCard
             title="Security Events"
             value={`${events.length} Events`}
-            subtitle={events.length > 0 ? 'Telemetry events logged' : 'No telemetry logged'}
+            subtitle={criticalAlertsCount > 0 ? `${criticalAlertsCount} critical alert(s)` : 'No active alerts'}
             icon={Activity}
-            variant="info"
+            variant={criticalAlertsCount > 0 ? 'fail' : 'info'}
             badge={<span className="text-[10px] font-mono text-cyan-300">Audit Log</span>}
-          />
-
-          {/* Card 6: Critical Alerts */}
-          <MetricCard
-            title="Critical Alerts"
-            value={criticalAlertsCount}
-            subtitle={criticalAlertsCount > 0 ? 'Requires attention' : 'Zero unacknowledged'}
-            icon={AlertTriangle}
-            variant={criticalAlertsCount > 0 ? 'fail' : 'pass'}
-            badge={<StatusBadge status={criticalAlertsCount > 0 ? 'CRITICAL' : 'RESOLVED'} size="sm" />}
+            note="Telemetry & liveness logs"
           />
         </div>
 

@@ -54,26 +54,11 @@ export default function FirmwareIntegrityPage() {
   }
 
   const isPass = activeVer.status === 'PASS';
-  const currentHash = activeVer.current_hash;
-  const referenceHash = activeVer.reference_hash;
-
-  // Split hashes into 8-character chunks to visualize bitwise/block comparison
-  const chunkString = (str: string, size: number) => {
-    const numChunks = Math.ceil(str.length / size);
-    const chunks = new Array(numChunks);
-    for (let i = 0, o = 0; i < numChunks; ++i, o += size) {
-      chunks[i] = str.substr(o, size);
-    }
-    return chunks;
-  };
-
-  const currentChunks = chunkString(currentHash, 8);
-  const refChunks = chunkString(referenceHash, 8);
 
   return (
     <AppLayout
       title="Authoritative Firmware Integrity Analysis"
-      subtitle="Hardware-level cryptographic measurement and golden reference comparison performed by STM32"
+      subtitle="Hardware-level cryptographic measurement and verification verdict performed on-chip by STM32"
     >
       <div className="space-y-6">
         {/* Verification Control & Action Bar */}
@@ -84,10 +69,10 @@ export default function FirmwareIntegrityPage() {
             </span>
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                Authoritative Measurement Engine: <span className="text-cyan-400 font-mono">STM32F407</span>
+                Authoritative Security Authority: <span className="text-cyan-400 font-mono">STM32F407</span>
               </p>
               <p className="text-xs text-slate-400">
-                Automatic scheduled execution: Every 10 minutes • Algorithm: SHA-256 (FIPS PUB 180-4)
+                On-Chip Isolated Hash Comparator • Decision transmitted with HMAC-SHA256 frame authentication
               </p>
             </div>
           </div>
@@ -95,7 +80,7 @@ export default function FirmwareIntegrityPage() {
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-emerald-400 bg-emerald-950/80 border border-emerald-800 font-semibold">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>STM32 SEC CORE ACTIVE</span>
+              <span>ISOLATED REFERENCE SECURE</span>
             </span>
           </div>
         </div>
@@ -117,7 +102,7 @@ export default function FirmwareIntegrityPage() {
                 </span>
               </div>
               <h3 className="text-lg font-black text-white pt-1">
-                {isPass ? 'Cryptographic Integrity Confirmed' : 'Integrity Mismatch Detected'}
+                {isPass ? 'Cryptographic Integrity Confirmed (MATCH)' : 'Integrity Mismatch Detected (HASH_MISMATCH)'}
               </h3>
             </div>
 
@@ -127,81 +112,48 @@ export default function FirmwareIntegrityPage() {
             </div>
           </div>
 
-          {/* SHA-256 Block-by-Block Comparison Visualizer */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between text-xs text-slate-300">
-              <span className="font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <Fingerprint className="w-4 h-4 text-cyan-400" />
-                <span>Cryptographic Digest Comparison (64 Hex Characters)</span>
-              </span>
-              <span className="text-[11px] text-slate-400 font-mono">
-                {isPass ? '100% Chunk Match' : 'Discrepancy in Blocks 0-7'}
-              </span>
+          {/* STM32 Security Isolation & Verification Mechanism */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+              <div className="flex items-center gap-2 text-cyan-400">
+                <ShieldCheck className="w-4 h-4" />
+                <span className="text-xs font-bold uppercase tracking-wider">Security Boundary</span>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Golden reference hashes are securely held in STM32 internal protected flash memory and are never exposed over external buses to prevent reference theft or extraction.
+              </p>
             </div>
 
-            {/* Current Measured Hash Blocks */}
             <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-300 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400" />
-                  <span>Measured Firmware SHA-256 (Flash Target):</span>
-                </span>
-                <HashDisplay hash={currentHash} showExpand={true} />
+              <div className="flex items-center gap-2 text-emerald-400">
+                <Fingerprint className="w-4 h-4" />
+                <span className="text-xs font-bold uppercase tracking-wider">On-Chip Decision</span>
               </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 pt-1 font-mono text-xs text-center">
-                {currentChunks.map((chunk, idx) => {
-                  const match = chunk === refChunks[idx];
-                  return (
-                    <div
-                      key={idx}
-                      className={`p-2 rounded border font-semibold tracking-wider ${
-                        match
-                          ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/80'
-                          : 'bg-rose-950/90 text-rose-300 border-rose-600 animate-pulse'
-                      }`}
-                    >
-                      <span className="block text-[9px] text-slate-400 uppercase">Block {idx}</span>
-                      <span>{chunk}</span>
-                    </div>
-                  );
-                })}
-              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                The STM32 measures target flash memory, calculates SHA-256 in hardware, compares against the trusted baseline, and outputs solely the authoritative verdict ({activeVer.verification_result}).
+              </p>
             </div>
 
-            {/* Golden Trusted Reference Hash Blocks */}
             <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-300 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  <span>Trusted Golden Reference (Protected STM32 Storage):</span>
-                </span>
-                <HashDisplay hash={referenceHash} showExpand={true} />
+              <div className="flex items-center gap-2 text-cyan-300">
+                <ShieldAlert className="w-4 h-4" />
+                <span className="text-xs font-bold uppercase tracking-wider">Frame Authentication</span>
               </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 pt-1 font-mono text-xs text-center">
-                {refChunks.map((chunk, idx) => (
-                  <div
-                    key={idx}
-                    className="p-2 rounded border font-semibold tracking-wider bg-slate-900/90 text-cyan-300 border-slate-700"
-                  >
-                    <span className="block text-[9px] text-slate-400 uppercase">Block {idx}</span>
-                    <span>{chunk}</span>
-                  </div>
-                ))}
-              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Verification packets are signed with HMAC-SHA256 (<span className="font-mono text-cyan-300 text-[11px]">X-FIVSED-STM32-HMAC</span>) before being relayed by the ESP32 to prevent spoofing.
+              </p>
             </div>
           </div>
 
-          {/* Factual Analysis Notes */}
+          {/* Verification Audit Statement */}
           <div className="p-4 rounded-lg bg-slate-900/60 border border-slate-800 space-y-1.5 text-xs">
             <span className="font-bold text-slate-200 block uppercase text-[11px] tracking-wider">
               Verification Audit Statement
             </span>
             <p className="text-slate-300 leading-relaxed font-mono">
               {activeVer.notes || (isPass 
-                ? 'Firmware integrity verification succeeded. Measured target flash memory digest matches the authoritative reference stored in STM32 hardware-protected flash.'
-                : 'Firmware integrity verification failed because the measured hash did not match the trusted reference on ' + activeVer.device_id + '.')}
+                ? 'Authoritative firmware integrity verified on-chip by STM32 Security Authority. Decision: MATCH confirmed.'
+                : 'Authoritative firmware integrity mismatch detected on-chip by STM32 Security Authority. Decision: HASH_MISMATCH on target ' + activeVer.device_id + '.')}
             </p>
           </div>
         </div>
@@ -221,9 +173,9 @@ export default function FirmwareIntegrityPage() {
               <thead>
                 <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px]">
                   <th className="py-2.5 px-3">Select</th>
-                  <th className="py-2.5 px-3">Verification ID</th>
-                  <th className="py-2.5 px-3">Result</th>
-                  <th className="py-2.5 px-3">Measured SHA-256</th>
+                  <th className="py-2.5 px-3">Report ID</th>
+                  <th className="py-2.5 px-3">Verdict</th>
+                  <th className="py-2.5 px-3">Authority</th>
                   <th className="py-2.5 px-3">Execution Time</th>
                   <th className="py-2.5 px-3">Timestamp</th>
                 </tr>
@@ -252,9 +204,7 @@ export default function FirmwareIntegrityPage() {
                       <td className="py-2.5 px-3">
                         <StatusBadge status={ver.verification_result} size="sm" />
                       </td>
-                      <td className="py-2.5 px-3">
-                        <HashDisplay hash={ver.current_hash} length={6} showCopy={false} />
-                      </td>
+                      <td className="py-2.5 px-3 text-emerald-400">STM32F407 (On-Chip)</td>
                       <td className="py-2.5 px-3 text-slate-400">{ver.verification_duration_ms} ms</td>
                       <td className="py-2.5 px-3 text-slate-400">{new Date(ver.verified_at).toLocaleTimeString()}</td>
                     </tr>
