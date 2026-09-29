@@ -59,26 +59,32 @@ export function MetricCard({
         onClick ? 'cursor-pointer soc-card-interactive' : ''
       } ${className}`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-slate-400 tracking-wide uppercase">{title}</p>
-          <div className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+      <div className="flex items-start justify-between gap-2.5 min-w-0">
+        <div className="space-y-1 min-w-0 flex-1">
+          <p className="text-[11px] font-semibold text-slate-400 tracking-wider uppercase truncate">{title}</p>
+          <div className="text-lg sm:text-xl font-bold tracking-tight text-white truncate flex items-center gap-2">
             {value}
           </div>
         </div>
-        <div className={`p-2.5 rounded-lg border border-slate-700/40 ${variantStyles.iconBg}`}>
-          <Icon className="w-5 h-5" />
+        <div className={`p-2 rounded-lg border border-slate-700/40 shrink-0 ${variantStyles.iconBg}`}>
+          <Icon className="w-4 h-4 sm:w-5 h-5" />
         </div>
       </div>
 
       {(subtitle || badge || note) && (
-        <div className="mt-3 pt-3 border-t border-slate-800/80 flex flex-col gap-1.5 text-xs text-slate-400">
-          <div className="flex items-center justify-between gap-2">
-            {subtitle && <span className="truncate">{subtitle}</span>}
-            {badge && <div>{badge}</div>}
+        <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-col gap-1 text-xs">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            {subtitle && (
+              <span className="text-[11px] text-slate-300 font-medium truncate min-w-0 flex-1" title={typeof subtitle === 'string' ? subtitle : undefined}>
+                {subtitle}
+              </span>
+            )}
+            {badge && (
+              <div className="shrink-0">{badge}</div>
+            )}
           </div>
           {note && (
-            <p className="text-[11px] leading-tight text-slate-400 italic">
+            <p className="text-[10px] leading-tight text-slate-400/90 italic truncate" title={note}>
               {note}
             </p>
           )}

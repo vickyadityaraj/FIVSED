@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'FIVSED — Firmware Integrity Verification and Security Event Detection',
+  title: 'FIVSED — Firmware Integrity Verification and Tamper Detection System for Embedded Devices',
   description: 'Remote SOC monitoring dashboard for STM32 firmware integrity verification, ESP32 telemetry ingestion, and real-time security event detection.',
 };
 

@@ -71,7 +71,7 @@ export default function LoginPage() {
               FIVSED
             </h1>
             <p className="text-xs sm:text-sm text-cyan-400 font-semibold mt-0.5">
-              Firmware Integrity Verification & Security Event Detection
+              Firmware Integrity Verification and Tamper Detection System for Embedded Devices
             </p>
             <p className="text-[11px] text-slate-400 mt-1">
               STM32 Security Authority Remote Monitoring SOC

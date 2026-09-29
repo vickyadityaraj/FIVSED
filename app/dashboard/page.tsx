@@ -101,7 +101,7 @@ export default function DashboardPage() {
         <ActiveAlertsBanner alerts={alerts} onAcknowledge={acknowledgeAlert} />
 
         {/* 6 Real Telemetry Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4">
           {/* Card 1: Firmware Integrity Decision */}
           <MetricCard
             title="Firmware Integrity"
@@ -111,7 +111,13 @@ export default function DashboardPage() {
             variant={latestVerification ? (isPass ? 'pass' : 'fail') : 'default'}
             badge={
               latestVerification ? (
-                <StatusBadge status={latestVerification.verification_result} size="sm" />
+                <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
+                  isPass 
+                    ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800/60' 
+                    : 'bg-rose-950/80 text-rose-400 border-rose-800/60'
+                }`}>
+                  {isPass ? 'PASS' : 'FAIL'}
+                </span>
               ) : (
                 <span className="text-[10px] font-mono text-slate-500">NO SCANS</span>
               )
@@ -142,7 +148,7 @@ export default function DashboardPage() {
           <MetricCard
             title="STM32 Security Authority"
             value={stm32Active ? 'ACTIVE' : 'DISCONNECTED'}
-            subtitle={stm32Active ? 'On-chip verifier online' : 'Awaiting UART heartbeat'}
+            subtitle={stm32Active ? 'On-chip verifier online' : 'Awaiting UART link'}
             icon={Cpu}
             variant={stm32Active ? 'pass' : 'default'}
             badge={

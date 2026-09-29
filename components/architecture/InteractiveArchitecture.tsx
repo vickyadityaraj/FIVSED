@@ -193,86 +193,129 @@ export function InteractiveArchitecture() {
             </div>
           </button>
 
-          {/* Dual Split Arrows from STM32 */}
-          <div className="w-full max-w-xl flex items-center justify-between text-slate-400 text-[11px] font-mono px-6 pt-1">
-            <div className="flex flex-col items-center">
-              <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-800/80 text-indigo-300 font-semibold">
-                USB Result
-              </span>
-              <ArrowDown className="w-5 h-5 text-indigo-400 mt-1" />
-            </div>
-            <div className="text-[10px] text-slate-400 font-sans italic">Dual Independent Transmission</div>
-            <div className="flex flex-col items-center">
-              <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800/80 text-cyan-300 font-semibold">
-                UART TX
-              </span>
-              <ArrowDown className="w-5 h-5 text-cyan-400 mt-1" />
-            </div>
-          </div>
-
-          {/* Level 4: Dual Output Targets (Raspberry Pi GUI vs ESP32) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl">
-            {/* Output 1: Raspberry Pi GUI & History */}
-            <button
-              onClick={() => setSelectedNode('RPI_GUI')}
-              className={`p-4 rounded-xl border text-left transition-all ${
-                selectedNode === 'RPI_GUI'
-                  ? 'bg-indigo-950/80 border-indigo-400 shadow-lg shadow-indigo-950/50 scale-105'
-                  : 'bg-slate-900/90 border-slate-700 hover:border-indigo-600'
-              }`}
-            >
-              <div className="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase">
-                <Monitor className="w-4 h-4" />
-                <span>Raspberry Pi</span>
-              </div>
-              <p className="text-[11px] font-semibold text-slate-200 mt-1">GUI & History</p>
-              <p className="text-[10px] text-slate-400 mt-1">Local touch interface • Offline audit logs</p>
-              <p className="text-[9px] text-indigo-300 mt-1 font-mono">USB CDC Input from STM32</p>
-            </button>
-
-            {/* Output 2: ESP32 LED/Buzzer */}
-            <button
-              onClick={() => setSelectedNode('ESP32')}
-              className={`p-4 rounded-xl border text-left transition-all ${
-                selectedNode === 'ESP32'
-                  ? 'bg-cyan-950/80 border-cyan-400 shadow-lg shadow-cyan-950/50 scale-105'
-                  : 'bg-slate-900/90 border-slate-700 hover:border-cyan-600'
-              }`}
-            >
-              <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase">
-                <Cpu className="w-4 h-4" />
-                <span>ESP32</span>
-              </div>
-              <p className="text-[11px] font-semibold text-slate-200 mt-1">LED / Buzzer Controller</p>
-              <p className="text-[10px] text-slate-400 mt-1">GPIO 21 (Green), GPIO 22 (Red), GPIO 23 (Buzzer)</p>
-              <p className="text-[9px] text-amber-400/90 mt-1 italic font-medium">UART RX from STM32 • No trust decision</p>
-            </button>
-          </div>
-
-          {/* Arrow from ESP32 down to Web Application */}
-          <div className="flex flex-col items-center text-cyan-400 pt-1">
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-cyan-300">
-              Wi-Fi (HTTPS REST POST /api/events)
+          {/* Split Transmission Header */}
+          <div className="w-full max-w-2xl flex items-center justify-center pt-2">
+            <span className="text-[11px] font-mono text-slate-400 px-3.5 py-1 rounded-full bg-slate-900/90 border border-slate-800">
+              Dual Independent Output Transmission
             </span>
-            <ArrowDown className="w-5 h-5 animate-pulse mt-1" />
           </div>
 
-          {/* Level 5: FIVSED Web Application */}
-          <button
-            onClick={() => setSelectedNode('WEB_APP')}
-            className={`w-full sm:w-96 p-4 rounded-xl border text-center transition-all ${
-              selectedNode === 'WEB_APP'
-                ? 'bg-cyan-950/80 border-cyan-400 shadow-lg shadow-cyan-950/50 scale-105'
-                : 'bg-slate-900/90 border-slate-700 hover:border-cyan-600'
-            }`}
-          >
-            <div className="flex items-center justify-center gap-2 text-xs font-bold text-white uppercase">
-              <Monitor className="w-4 h-4 text-cyan-400" />
-              <span>Web Application</span>
+          {/* Two-Column Branch Container: Local On-Prem vs Peripheral & Web App */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl items-start">
+            
+            {/* LEFT BRANCH: Raspberry Pi (Local GUI & Audit History) */}
+            <div className="flex flex-col items-center space-y-3">
+              {/* Connector Link */}
+              <div className="flex flex-col items-center text-indigo-400">
+                <span className="text-[10px] font-mono px-2.5 py-0.5 rounded bg-indigo-950/90 border border-indigo-800/80 text-indigo-300 font-semibold">
+                  USB Result (CDC Stream)
+                </span>
+                <ArrowDown className="w-4 h-4 text-indigo-400 mt-1" />
+              </div>
+
+              {/* Node: Raspberry Pi GUI */}
+              <button
+                onClick={() => setSelectedNode('RPI_GUI')}
+                className={`w-full p-4 rounded-xl border text-left transition-all ${
+                  selectedNode === 'RPI_GUI'
+                    ? 'bg-indigo-950/90 border-indigo-400 shadow-lg shadow-indigo-950/50 scale-[1.02]'
+                    : 'bg-slate-900/90 border-slate-700 hover:border-indigo-500'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase">
+                    <Monitor className="w-4 h-4" />
+                    <span>Raspberry Pi</span>
+                  </div>
+                  <span className="text-[9px] font-mono text-indigo-300 px-1.5 py-0.5 rounded bg-indigo-950 border border-indigo-800/60">
+                    ON-PREMISES
+                  </span>
+                </div>
+                <p className="text-xs font-bold text-slate-100 mt-1.5">GUI & History</p>
+                <div className="mt-2 text-[11px] text-slate-300 font-mono space-y-1">
+                  <p>• Local Touch Interface</p>
+                  <p>• Persistent On-site Audit Log</p>
+                  <p className="text-indigo-300 font-semibold">• Air-Gapped Verification Display</p>
+                </div>
+              </button>
+
+              <div className="w-full p-2.5 rounded-lg bg-indigo-950/30 border border-indigo-900/40 text-center text-[10px] text-indigo-300/80 font-mono">
+                Independent on-site terminal (No cloud dependency)
+              </div>
             </div>
-            <p className="text-[11px] text-cyan-300 mt-0.5 font-semibold">Remote SOC Dashboard & Realtime Monitoring</p>
-            <p className="text-[10px] text-slate-400 mt-1">Real-time Telemetry • Verification Timeline • Incident Alerts</p>
-          </button>
+
+            {/* RIGHT BRANCH: ESP32 -> Web Application */}
+            <div className="flex flex-col items-center space-y-3">
+              {/* Connector Link: STM32 to ESP32 */}
+              <div className="flex flex-col items-center text-cyan-400">
+                <span className="text-[10px] font-mono px-2.5 py-0.5 rounded bg-cyan-950/90 border border-cyan-800/80 text-cyan-300 font-semibold">
+                  UART TX (Result Frame)
+                </span>
+                <ArrowDown className="w-4 h-4 text-cyan-400 mt-1" />
+              </div>
+
+              {/* Node: ESP32 */}
+              <button
+                onClick={() => setSelectedNode('ESP32')}
+                className={`w-full p-4 rounded-xl border text-left transition-all ${
+                  selectedNode === 'ESP32'
+                    ? 'bg-cyan-950/90 border-cyan-400 shadow-lg shadow-cyan-950/50 scale-[1.02]'
+                    : 'bg-slate-900/90 border-slate-700 hover:border-cyan-500'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase">
+                    <Cpu className="w-4 h-4" />
+                    <span>ESP32</span>
+                  </div>
+                  <span className="text-[9px] font-mono text-cyan-300 px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-800/60">
+                    PERIPHERAL
+                  </span>
+                </div>
+                <p className="text-xs font-bold text-slate-100 mt-1.5">LED / Buzzer Controller</p>
+                <div className="mt-2 text-[11px] text-slate-300 font-mono space-y-1">
+                  <p>• GPIO 21 (Green) & 22 (Red)</p>
+                  <p>• GPIO 23 Piezo Buzzer (2N7000)</p>
+                  <p className="text-amber-300 font-semibold">• No reference hash / no decision</p>
+                </div>
+              </button>
+
+              {/* Connector Link: ESP32 to Web App */}
+              <div className="flex flex-col items-center text-cyan-400 py-0.5">
+                <span className="text-[10px] font-mono px-2.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-cyan-300">
+                  Wi-Fi (HTTPS POST /api/events)
+                </span>
+                <ArrowDown className="w-4 h-4 text-cyan-400 animate-pulse mt-1" />
+              </div>
+
+              {/* Node: Web Application */}
+              <button
+                onClick={() => setSelectedNode('WEB_APP')}
+                className={`w-full p-4 rounded-xl border text-left transition-all ${
+                  selectedNode === 'WEB_APP'
+                    ? 'bg-sky-950/90 border-sky-400 shadow-lg shadow-sky-950/50 scale-[1.02]'
+                    : 'bg-slate-900/90 border-slate-700 hover:border-sky-500'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold text-sky-400 uppercase">
+                    <Monitor className="w-4 h-4" />
+                    <span>Web Application</span>
+                  </div>
+                  <span className="text-[9px] font-mono text-sky-300 px-1.5 py-0.5 rounded bg-sky-950 border border-sky-800/60">
+                    CLOUD SOC
+                  </span>
+                </div>
+                <p className="text-xs font-bold text-slate-100 mt-1.5">Remote SOC Dashboard</p>
+                <div className="mt-2 text-[11px] text-slate-300 font-mono space-y-1">
+                  <p>• Real-time Verification Telemetry</p>
+                  <p>• Immediate Tamper Alerts</p>
+                  <p className="text-sky-300 font-semibold">• SOC History & Audit Trail</p>
+                </div>
+              </button>
+            </div>
+
+          </div>
         </div>
       </div>
 

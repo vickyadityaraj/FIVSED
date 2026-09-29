@@ -80,18 +80,13 @@ export function FivsedLogo({
       </div>
 
       {showText && (
-        <div className="flex flex-col">
-          <div className="flex items-center gap-1.5">
-            <span className={`font-black tracking-wider text-white ${textSizes}`}>
-              FIVSED
-            </span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded font-mono font-semibold bg-cyan-950/80 text-cyan-400 border border-cyan-800/60">
-              STM32 SEC
-            </span>
-          </div>
+        <div className="flex flex-col min-w-0">
+          <span className={`font-black tracking-wider text-white ${textSizes}`}>
+            FIVSED
+          </span>
           {showSubtitle && (
-            <span className="text-[11px] text-slate-400 font-medium leading-tight tracking-tight">
-              Firmware Integrity Verification & Security Event Detection
+            <span className="text-[10px] text-slate-400 font-medium leading-snug tracking-tight max-w-[190px] block mt-0.5">
+              Firmware Integrity Verification and Tamper Detection System for Embedded Devices
             </span>
           )}
         </div>
