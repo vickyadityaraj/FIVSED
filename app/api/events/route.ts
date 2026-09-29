@@ -7,7 +7,7 @@ import {
   getComputedDevices, 
   isAnyHardwareOnline 
 } from '@/lib/server/event-store';
-import { EventIngestionPayload } from '@/types/fivsed';
+import { EventIngestionPayload, VerificationStatus } from '@/types/fivsed';
 
 const VALID_API_KEY = process.env.DEVICE_API_KEY || 'fivsed_sec_key_77e9b812a4309c48';
 
@@ -73,7 +73,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     // 1. Authenticate Request
-    const apiKeyHeader = req.headers.get('x-api-key');
+    const apiKeyHeader = req.headers.get('x-api-key') || req.headers.get('x-fivsed-api-key');
     const authHeader = req.headers.get('authorization');
     const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
     const providedKey = apiKeyHeader || bearerToken;
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Parse & Validate Payload
-    let body: EventIngestionPayload;
+    let body: any;
     try {
       body = await req.json();
     } catch {
@@ -100,21 +100,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Extract device_id from body or header (web_uploader.cpp sets X-FIVSED-Device-ID)
+    const device_id = body.device_id || req.headers.get('x-fivsed-device-id') || 'FIVSED-001';
+    const event = body.event;
+    // Map status 'ACTIVE' (from ESP32 heartbeat) to 'PASS' for internal integrity storage
+    const rawStatus = body.status;
+    const status = (rawStatus === 'ACTIVE' ? 'PASS' : rawStatus) as VerificationStatus;
+
     const {
-      device_id,
-      event,
-      status,
       timestamp,
       verification_id,
       current_hash,
       reference_hash,
       verification_duration_ms,
       severity,
-      metadata,
       message
     } = body;
 
-    if (!device_id || !event || !status) {
+    // Capture STM32 HMAC from header if present
+    const stm32Hmac = req.headers.get('x-fivsed-stm32-hmac');
+    const metadata = {
+      ...(body.metadata || {}),
+      ...(stm32Hmac ? { stm32_hmac: stm32Hmac } : {}),
+      ...(body.source ? { source: body.source } : {}),
+      ...(body.esp32_active !== undefined ? { esp32_active: body.esp32_active } : {}),
+      ...(body.stm32_active !== undefined ? { stm32_active: body.stm32_active } : {}),
+      ...(body.raspberry_pi_active !== undefined ? { raspberry_pi_active: body.raspberry_pi_active } : {})
+    };
+
+    if (!device_id || !event || !rawStatus) {
       return NextResponse.json(
         { 
           success: false, 
