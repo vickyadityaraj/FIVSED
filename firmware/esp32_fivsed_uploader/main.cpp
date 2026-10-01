@@ -5,7 +5,6 @@
 #include <WiFiClient.h>
 #include "config_storage.h"
 #include "wifi_manager.h"
-#include "uart_protocol.h"
 
 #define PIN_ONBOARD_LED 2
 #define PIN_GREEN_LED   21
@@ -16,7 +15,8 @@
 #define LOCAL_HEARTBEAT_INTERVAL_MS 15000UL
 #define WIFI_RETRY_INTERVAL_MS      15000UL
 
-HardwareSerial Safety(2); // GPIO16 RX2, GPIO17 TX2 (TX2 unconnected)
+// UART2: GPIO 16 (RX2), GPIO 17 (TX2)
+HardwareSerial Safety(2);
 WifiManager wifi;
 Esp32Config cfg;
 
@@ -100,6 +100,32 @@ static void uploadVerdict(const String& verdict) {
   postEvent(body);
 }
 
+static void processLine(String line) {
+  line.trim();
+  if (line.length() == 0) return;
+  Serial.printf("[STM32 RAW] %s\n", line.c_str());
+
+  // 1. Process COMPONENT_HEARTBEAT and respond with ACK back to STM32
+  if (line.startsWith("COMPONENT_HEARTBEAT")) {
+    haveStm32Heartbeat = true;
+    lastStm32HeartbeatMs = millis();
+    lastPiActive = (line.indexOf("PI=OK") >= 0);
+    Serial.printf("COMPONENT_HEARTBEAT: STM32=ACTIVE, PI=%s\n", lastPiActive ? "ACTIVE" : "OFFLINE");
+
+    // Send ACK back to STM32 on GPIO 17 (TX2)
+    Safety.print("ACK: ESP32_ACTIVE\r\n");
+    return;
+  }
+
+  // 2. Process STATUS: MATCH / HASH_MISMATCH / READ_ERROR
+  if (line.startsWith("STATUS:")) {
+    String verdict = line.substring(7);
+    verdict.trim();
+    setIndicators(verdict);
+    uploadVerdict(verdict);
+  }
+}
+
 static void handleUsbConsole() {
   if (!Serial.available()) return;
   String line = Serial.readStringUntil('\n');
@@ -136,26 +162,17 @@ void loop() {
   handleUsbConsole();
   const uint32_t now = millis();
 
+  // Maintain Wi-Fi
   if (cfg.uploadEnabled && !wifi.connected() && !cfg.ssid.isEmpty() && (now - lastWifiAttemptMs) >= WIFI_RETRY_INTERVAL_MS) {
     lastWifiAttemptMs = now;
     wifi.connect(cfg);
   }
   digitalWrite(PIN_ONBOARD_LED, wifi.connected() ? HIGH : LOW);
 
-  // Read parsed messages from STM32 using uart_protocol
-  Stm32Message msg;
-  if (readStm32Line(Safety, msg)) {
-    Serial.printf("[STM32 RAW] %s\n", msg.text.c_str());
-
-    if (msg.type == MSG_HEARTBEAT) {
-      haveStm32Heartbeat = true;
-      lastStm32HeartbeatMs = now;
-      lastPiActive = msg.piOnline;
-      Serial.printf("COMPONENT_HEARTBEAT: STM32=ACTIVE, PI=%s\n", lastPiActive ? "ACTIVE" : "OFFLINE");
-    } else if (msg.type == MSG_STATUS) {
-      setIndicators(msg.verdict);
-      uploadVerdict(msg.verdict);
-    }
+  // Read lines from STM32 PA9
+  while (Safety.available() > 0) {
+    String line = Safety.readStringUntil('\n');
+    processLine(line);
   }
 
   // Periodic Local Heartbeat upload
