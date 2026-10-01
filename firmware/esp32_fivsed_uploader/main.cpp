@@ -15,7 +15,7 @@
 #define LOCAL_HEARTBEAT_INTERVAL_MS 15000UL
 #define WIFI_RETRY_INTERVAL_MS      15000UL
 
-// UART2: GPIO 16 (RX2), GPIO 17 (TX2)
+// Hardware UART2: GPIO 16 (RX2), GPIO 17 (TX2)
 HardwareSerial Safety(2);
 WifiManager wifi;
 Esp32Config cfg;
@@ -105,14 +105,14 @@ static void processLine(String line) {
   if (line.length() == 0) return;
   Serial.printf("[STM32 RAW] %s\n", line.c_str());
 
-  // 1. Process COMPONENT_HEARTBEAT and respond with ACK back to STM32
+  // 1. Process COMPONENT_HEARTBEAT & respond with ACK to STM32 (PA10)
   if (line.startsWith("COMPONENT_HEARTBEAT")) {
     haveStm32Heartbeat = true;
     lastStm32HeartbeatMs = millis();
     lastPiActive = (line.indexOf("PI=OK") >= 0);
     Serial.printf("COMPONENT_HEARTBEAT: STM32=ACTIVE, PI=%s\n", lastPiActive ? "ACTIVE" : "OFFLINE");
 
-    // Send ACK back to STM32 on GPIO 17 (TX2)
+    // Transmit ACK back to STM32
     Safety.print("ACK: ESP32_ACTIVE\r\n");
     return;
   }
@@ -169,7 +169,7 @@ void loop() {
   }
   digitalWrite(PIN_ONBOARD_LED, wifi.connected() ? HIGH : LOW);
 
-  // Read lines from STM32 PA9
+  // Process incoming lines from STM32 PA9
   while (Safety.available() > 0) {
     String line = Safety.readStringUntil('\n');
     processLine(line);
