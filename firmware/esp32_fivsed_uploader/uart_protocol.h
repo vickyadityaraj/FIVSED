@@ -1,11 +1,18 @@
 #pragma once
 #include <Arduino.h>
 
-struct Stm32EventFrame {
-  uint16_t payloadLen;
-  uint8_t payload[768];
-  uint8_t hmac[32];
+enum Stm32MessageType {
+  MSG_NONE = 0,
+  MSG_HEARTBEAT,
+  MSG_STATUS
 };
 
-bool readStm32Event(HardwareSerial& uart, Stm32EventFrame& out, uint32_t timeoutMs);
-bool payloadContainsEvent(const Stm32EventFrame& frame, const char* eventName);
+struct Stm32Message {
+  Stm32MessageType type;
+  String text;
+  bool piOnline;
+  String verdict; // "MATCH", "HASH_MISMATCH", "READ_ERROR"
+};
+
+// Reads incoming ASCII text lines from STM32 (PA9/USART TX -> ESP32 GPIO 16)
+bool readStm32Line(HardwareSerial& uart, Stm32Message& msg);
