@@ -199,7 +199,13 @@ export default function DeviceDetailsPage() {
                         STM32F407 (On-Chip)
                       </td>
                       <td className="py-2.5 px-3 text-cyan-300 font-sans">
-                        HMAC-SHA256
+                        {ver.stm32_hmac ? (
+                          <span className="font-mono text-[10px] text-cyan-300 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-800/50" title={ver.stm32_hmac}>
+                            HMAC: {ver.stm32_hmac.substring(0, 10)}...
+                          </span>
+                        ) : (
+                          'HMAC-SHA256'
+                        )}
                       </td>
                       <td className="py-2.5 px-3 text-slate-400">
                         {new Date(ver.verified_at).toLocaleTimeString()}

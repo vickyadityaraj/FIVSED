@@ -179,9 +179,11 @@ export function recordIngestedEvent(payload: {
       verified_at: eventTime,
       created_at: eventTime,
       source: 'STM32',
-      notes: payload.message || (isPass 
-        ? 'Authoritative firmware integrity verified on-chip by STM32 Security Authority. Decision: MATCH.' 
-        : 'Authoritative firmware integrity mismatch detected on-chip by STM32 Security Authority. Decision: HASH_MISMATCH.')
+      notes: payload.message || (payload.metadata?.result 
+        ? `Authoritative STM32 Security Decision: ${payload.metadata.result}`
+        : (isPass 
+          ? 'Authoritative firmware integrity verified on-chip by STM32 Security Authority. Decision: MATCH.' 
+          : 'Authoritative firmware integrity mismatch detected on-chip by STM32 Security Authority. Decision: HASH_MISMATCH.'))
     };
     store.verifications.unshift(newVerification);
   }

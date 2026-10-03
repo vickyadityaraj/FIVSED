@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS public.firmware_verifications (
     verification_result TEXT NOT NULL CHECK (verification_result IN ('INTEGRITY_PASS', 'HASH_MISMATCH', 'VERIFICATION_ERROR', 'TIMEOUT')),
     verification_duration_ms INT NOT NULL DEFAULT 420,
     source TEXT NOT NULL DEFAULT 'STM32',
+    stm32_hmac TEXT,
     notes TEXT,
     verified_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -165,6 +166,9 @@ CREATE TRIGGER trigger_verification_failure
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_verification_failure_alert();
 
+-- Ensure new columns are present if tables already exist
+ALTER TABLE public.firmware_verifications ADD COLUMN IF NOT EXISTS stm32_hmac TEXT;
+
 -- Row Level Security (RLS)
 -- Keep user profiles protected with RLS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -176,6 +180,16 @@ ALTER TABLE public.firmware_verifications DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.security_events DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.alerts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.device_heartbeats DISABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies first so script can be safely re-run without ERROR 42710
+DROP POLICY IF EXISTS "Authenticated users can view profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Authenticated users can view devices" ON public.devices;
+DROP POLICY IF EXISTS "Authenticated users can view verifications" ON public.firmware_verifications;
+DROP POLICY IF EXISTS "Authenticated users can view events" ON public.security_events;
+DROP POLICY IF EXISTS "Authenticated users can view alerts" ON public.alerts;
+DROP POLICY IF EXISTS "Authenticated users can view heartbeats" ON public.device_heartbeats;
+DROP POLICY IF EXISTS "Operators and admins can update alerts" ON public.alerts;
+DROP POLICY IF EXISTS "Admins can manage devices" ON public.devices;
 
 -- RLS Policies: Authenticated users can view profiles
 CREATE POLICY "Authenticated users can view profiles" 

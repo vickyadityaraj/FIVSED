@@ -1,6 +1,8 @@
 #pragma once
 #include <Arduino.h>
-#include "config_storage.h"
+#include "uart_protocol.h"
 
-// Web uploader routines are integrated into main.cpp.
-// This header is kept for project compatibility.
+struct Esp32Config;
+
+bool uploadStm32Event(const Esp32Config& cfg, const Stm32EventFrame& event);
+bool uploadLocalHeartbeat(const Esp32Config& cfg, bool stm32Active, bool piActive, uint32_t uptimeMs);

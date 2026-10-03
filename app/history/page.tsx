@@ -176,7 +176,13 @@ export default function VerificationHistoryPage() {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-cyan-300 font-sans">
-                        HMAC-SHA256 Validated
+                        {item.stm32_hmac ? (
+                          <span className="font-mono text-[10px] text-cyan-300 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-800/50" title={item.stm32_hmac}>
+                            HMAC: {item.stm32_hmac.substring(0, 10)}...
+                          </span>
+                        ) : (
+                          'HMAC-SHA256 Validated'
+                        )}
                       </td>
                       <td className="py-3 px-4 text-slate-400">{item.verification_duration_ms} ms</td>
                       <td className="py-3 px-4 text-slate-400 font-sans">
