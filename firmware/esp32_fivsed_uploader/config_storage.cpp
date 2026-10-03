@@ -6,14 +6,13 @@ static Preferences prefs;
 Esp32Config loadConfig() {
   Esp32Config cfg;
   prefs.begin("fivsed", true);
-  // Default values provide immediate plug-and-play connectivity if NVS is unprovisioned
-  cfg.ssid = prefs.getString("ssid", "Abhishek");
-  cfg.password = prefs.getString("password", "9640060290");
-  cfg.endpoint = prefs.getString("endpoint", "https://fivsed.vercel.app/api/events");
-  cfg.apiKey = prefs.getString("api_key", "fivsed_sec_key_77e9b812a4309c48");
-  cfg.deviceId = prefs.getString("device_id", "FIVSED-001");
+  cfg.ssid = prefs.getString("ssid", "");
+  cfg.password = prefs.getString("password", "");
+  cfg.endpoint = prefs.getString("endpoint", "");
+  cfg.apiKey = prefs.getString("api_key", "");
+  cfg.deviceId = prefs.getString("device_id", "");
   cfg.caPem = prefs.getString("ca_pem", "");
-  cfg.uploadEnabled = prefs.getBool("upload", true);
+  cfg.uploadEnabled = prefs.getBool("upload", false);
   prefs.end();
   return cfg;
 }

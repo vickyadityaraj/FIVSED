@@ -137,7 +137,7 @@ void setup() {
   cfg = loadConfig();
   printConfig(cfg);
 
-  if (cfg.uploadEnabled && !cfg.ssid.isEmpty()) {
+  if (cfg.uploadEnabled && !cfg.ssid.isEmpty() && !cfg.caPem.isEmpty()) {
     const bool ok = wifi.connect(cfg);
     Serial.println(ok ? "WIFI_CONNECTED" : "WIFI_CONNECT_FAILED");
     lastWifiAttemptMs = millis();
@@ -148,7 +148,7 @@ void loop() {
   handleUsbConsole();
 
   const uint32_t now = millis();
-  if (cfg.uploadEnabled && !wifi.connected() && !cfg.ssid.isEmpty() &&
+  if (cfg.uploadEnabled && !wifi.connected() && !cfg.ssid.isEmpty() && !cfg.caPem.isEmpty() &&
       (static_cast<uint32_t>(now - lastWifiAttemptMs) >= WIFI_RETRY_INTERVAL_MS)) {
     lastWifiAttemptMs = now;
     Serial.println("WIFI_RECONNECT_ATTEMPT");
