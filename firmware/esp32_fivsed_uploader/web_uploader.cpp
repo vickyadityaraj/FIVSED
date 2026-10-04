@@ -16,13 +16,17 @@ static String hmacHex(const uint8_t* data, size_t len) {
 }
 
 bool uploadStm32Event(const Esp32Config& cfg, const Stm32EventFrame& event) {
-  if (!cfg.uploadEnabled || cfg.endpoint.isEmpty() || cfg.apiKey.isEmpty() || cfg.deviceId.isEmpty() || cfg.caPem.isEmpty()) {
+  if (!cfg.uploadEnabled || cfg.endpoint.isEmpty() || cfg.apiKey.isEmpty() || cfg.deviceId.isEmpty()) {
     return false;
   }
   if (WiFi.status() != WL_CONNECTED) return false;
 
   WiFiClientSecure client;
-  client.setCACert(cfg.caPem.c_str());
+  if (!cfg.caPem.isEmpty()) {
+    client.setCACert(cfg.caPem.c_str());
+  } else {
+    client.setInsecure();
+  }
 
   HTTPClient http;
   if (!http.begin(client, cfg.endpoint)) return false;
@@ -40,13 +44,17 @@ bool uploadStm32Event(const Esp32Config& cfg, const Stm32EventFrame& event) {
   return code >= 200 && code < 300;
 }
 
-
 bool uploadLocalHeartbeat(const Esp32Config& cfg, bool stm32Active, bool piActive, uint32_t uptimeMs) {
-  if (!cfg.uploadEnabled || cfg.endpoint.isEmpty() || cfg.apiKey.isEmpty() || cfg.deviceId.isEmpty() || cfg.caPem.isEmpty()) return false;
+  if (!cfg.uploadEnabled || cfg.endpoint.isEmpty() || cfg.apiKey.isEmpty() || cfg.deviceId.isEmpty()) return false;
   if (WiFi.status() != WL_CONNECTED) return false;
 
   WiFiClientSecure client;
-  client.setCACert(cfg.caPem.c_str());
+  if (!cfg.caPem.isEmpty()) {
+    client.setCACert(cfg.caPem.c_str());
+  } else {
+    client.setInsecure();
+  }
+
   HTTPClient http;
   if (!http.begin(client, cfg.endpoint)) return false;
   http.addHeader("Content-Type", "application/json");

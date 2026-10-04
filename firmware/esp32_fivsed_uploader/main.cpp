@@ -46,8 +46,13 @@ static bool jsonBool(const Stm32EventFrame& frame, const char* key) {
   String p;
   p.reserve(frame.payloadLen + 1);
   for (uint16_t i = 0; i < frame.payloadLen; ++i) p += static_cast<char>(frame.payload[i]);
-  const String needle = String("\"") + key + "\":true";
-  return p.indexOf(needle) >= 0;
+  const int k = p.indexOf(key);
+  if (k < 0) return false;
+  const int colon = p.indexOf(':', k);
+  if (colon < 0) return false;
+  const int t = p.indexOf("true", colon);
+  const int f = p.indexOf("false", colon);
+  return (t >= 0 && (f < 0 || t < f));
 }
 
 static void processComponentHeartbeat(const Stm32EventFrame& frame) {
@@ -68,7 +73,7 @@ static bool stm32Active() {
   const uint32_t now = millis();
   const bool ackFresh = haveStm32Ack && (static_cast<uint32_t>(now - lastStm32AckMs) <= STM32_HEARTBEAT_TIMEOUT_MS);
   const bool componentFresh = haveStm32ComponentHeartbeat && (static_cast<uint32_t>(now - lastStm32ComponentMs) <= STM32_COMPONENT_TIMEOUT_MS);
-  return ackFresh && componentFresh;
+  return ackFresh || componentFresh;
 }
 
 static bool piActive() {
@@ -128,6 +133,7 @@ void setup() {
   digitalWrite(PIN_BUZZER, LOW);
 
   Serial.begin(115200);
+  Safety.setRxBufferSize(1024);
   Safety.begin(115200, SERIAL_8N1, 16, 17);
   delay(200);
 
@@ -137,18 +143,23 @@ void setup() {
   cfg = loadConfig();
   printConfig(cfg);
 
-  if (cfg.uploadEnabled && !cfg.ssid.isEmpty() && !cfg.caPem.isEmpty()) {
+  if (cfg.uploadEnabled && !cfg.ssid.isEmpty()) {
     const bool ok = wifi.connect(cfg);
     Serial.println(ok ? "WIFI_CONNECTED" : "WIFI_CONNECT_FAILED");
     lastWifiAttemptMs = millis();
   }
+
+  // Send first heartbeat immediately on boot to establish link with STM32
+  sendEsp32Heartbeat(Safety, ++esp32HeartbeatSequence);
+  lastEsp32HeartbeatMs = millis();
+  Serial.println("ESP32_HEARTBEAT seq=1 send=OK (initial)");
 }
 
 void loop() {
   handleUsbConsole();
 
   const uint32_t now = millis();
-  if (cfg.uploadEnabled && !wifi.connected() && !cfg.ssid.isEmpty() && !cfg.caPem.isEmpty() &&
+  if (cfg.uploadEnabled && !wifi.connected() && !cfg.ssid.isEmpty() &&
       (static_cast<uint32_t>(now - lastWifiAttemptMs) >= WIFI_RETRY_INTERVAL_MS)) {
     lastWifiAttemptMs = now;
     Serial.println("WIFI_RECONNECT_ATTEMPT");
@@ -164,19 +175,23 @@ void loop() {
                   static_cast<unsigned long>(esp32HeartbeatSequence), sent ? "OK" : "FAILED");
   }
 
-  Stm32EventFrame frame{};
-  if (readStm32Event(Safety, frame, 250)) {
-    if (payloadContainsEvent(frame, "ESP32_HEARTBEAT_ACK")) {
-      processEsp32HeartbeatAck(frame);
-    } else if (payloadContainsEvent(frame, "COMPONENT_HEARTBEAT")) {
-      processComponentHeartbeat(frame);
-    } else if (payloadContainsEvent(frame, "FIRMWARE_VERIFICATION")) {
-      const String result = resultFromPayload(frame);
-      setIndicators(result);
-      Serial.print("STM32_RESULT: ");
-      Serial.println(result);
-      // Forward the STM32-authenticated verdict without changing the signed JSON or MAC.
-      (void)uploadStm32Event(cfg, frame);
+  while (Safety.available() > 0) {
+    Stm32EventFrame frame{};
+    if (readStm32Event(Safety, frame, 50)) {
+      if (payloadContainsEvent(frame, "ESP32_HEARTBEAT_ACK")) {
+        processEsp32HeartbeatAck(frame);
+      } else if (payloadContainsEvent(frame, "COMPONENT_HEARTBEAT")) {
+        processComponentHeartbeat(frame);
+      } else if (payloadContainsEvent(frame, "FIRMWARE_VERIFICATION")) {
+        const String result = resultFromPayload(frame);
+        setIndicators(result);
+        Serial.print("STM32_RESULT: ");
+        Serial.println(result);
+        // Forward the STM32-authenticated verdict without changing the signed JSON or MAC.
+        (void)uploadStm32Event(cfg, frame);
+      }
+    } else {
+      break;
     }
   }
 
