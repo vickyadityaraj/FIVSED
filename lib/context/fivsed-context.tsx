@@ -90,7 +90,9 @@ export function FIVSEDProvider({ children }: { children: React.ReactNode }) {
           const computed = (devRes.data as Device[]).map(d => {
             const lastSeenTime = d.last_seen ? new Date(d.last_seen).getTime() : 0;
             const isOnline = (currentTimestamp - lastSeenTime) < 45000;
-            const status: DeviceStatus = isOnline ? (d.status === 'WARNING' ? 'WARNING' : 'ONLINE') : 'OFFLINE';
+            const status: DeviceStatus = (d.status === 'OFFLINE' || !isOnline)
+              ? 'OFFLINE'
+              : (d.status === 'WARNING' ? 'WARNING' : 'ONLINE');
             return {
               ...d,
               status

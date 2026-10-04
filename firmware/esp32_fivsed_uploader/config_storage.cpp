@@ -6,13 +6,18 @@ static Preferences prefs;
 Esp32Config loadConfig() {
   Esp32Config cfg;
   prefs.begin("fivsed", true);
-  cfg.ssid = prefs.getString("ssid", "");
-  cfg.password = prefs.getString("password", "");
-  cfg.endpoint = prefs.getString("endpoint", "");
-  cfg.apiKey = prefs.getString("api_key", "");
-  cfg.deviceId = prefs.getString("device_id", "");
+  cfg.ssid = prefs.getString("ssid", "Abhishek");
+  if (cfg.ssid.isEmpty()) cfg.ssid = "Abhishek";
+  cfg.password = prefs.getString("password", "9640060290");
+  if (cfg.password.isEmpty()) cfg.password = "9640060290";
+  cfg.endpoint = prefs.getString("endpoint", "https://fivsed.vercel.app/api/events");
+  if (cfg.endpoint.isEmpty()) cfg.endpoint = "https://fivsed.vercel.app/api/events";
+  cfg.apiKey = prefs.getString("api_key", "fivsed_sec_key_77e9b812a4309c48");
+  if (cfg.apiKey.isEmpty()) cfg.apiKey = "fivsed_sec_key_77e9b812a4309c48";
+  cfg.deviceId = prefs.getString("device_id", "FIVSED-001");
+  if (cfg.deviceId.isEmpty()) cfg.deviceId = "FIVSED-001";
   cfg.caPem = prefs.getString("ca_pem", "");
-  cfg.uploadEnabled = prefs.getBool("upload", false);
+  cfg.uploadEnabled = prefs.getBool("upload", true);
   prefs.end();
   return cfg;
 }

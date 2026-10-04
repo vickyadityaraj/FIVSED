@@ -45,9 +45,12 @@ export function getComputedDevices(): Device[] {
   return store.devices.map(device => {
     const lastSeenTime = new Date(device.last_seen).getTime();
     const isOnline = (now - lastSeenTime) < HARDWARE_TIMEOUT_MS;
+    const status: 'ONLINE' | 'OFFLINE' | 'WARNING' = (device.status === 'OFFLINE' || !isOnline)
+      ? 'OFFLINE'
+      : (device.status === 'WARNING' ? 'WARNING' : 'ONLINE');
     return {
       ...device,
-      status: isOnline ? (device.status === 'WARNING' ? 'WARNING' : 'ONLINE') : 'OFFLINE'
+      status
     };
   });
 }
@@ -172,6 +175,8 @@ export function recordIngestedEvent(payload: {
       id: `ver-${Date.now()}-${payload.verification_id}`,
       verification_id: payload.verification_id,
       device_id: payload.device_id,
+      current_hash: payload.current_hash,
+      reference_hash: payload.reference_hash,
       stm32_hmac: (payload.metadata?.stm32_hmac as string) || undefined,
       status: payload.status,
       verification_result: isFailure ? 'HASH_MISMATCH' : 'INTEGRITY_PASS',

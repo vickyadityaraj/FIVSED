@@ -28,9 +28,12 @@ export async function GET() {
       const now = Date.now();
       const computedDevices = devices.map(d => {
         const isOnline = (now - new Date(d.last_seen).getTime()) < 45000;
+        const status = (d.status === 'OFFLINE' || !isOnline)
+          ? 'OFFLINE'
+          : (d.status === 'WARNING' ? 'WARNING' : 'ONLINE');
         return {
           ...d,
-          status: isOnline ? (d.status === 'WARNING' ? 'WARNING' : 'ONLINE') : 'OFFLINE'
+          status
         };
       });
 
@@ -125,8 +128,8 @@ export async function POST(req: NextRequest) {
     } = body;
 
     const verification_id = body.verification_id ?? body.sequence ?? body.seq ?? (event === 'FIRMWARE_VERIFICATION' ? ((Date.now() % 90000) + 10000) : undefined);
-    const current_hash = body.current_hash || body.hash || body.measured_hash || 'STM32_ONCHIP_PROTECTED';
-    const reference_hash = body.reference_hash || body.golden_hash || body.reference || 'STM32_ONCHIP_PROTECTED';
+    const current_hash = body.current_hash || body.hash || body.measured_hash || body.calculated_sha256 || 'STM32_ONCHIP_PROTECTED';
+    const reference_hash = body.reference_hash || body.golden_hash || body.reference || body.reference_sha256 || 'STM32_ONCHIP_PROTECTED';
     const verification_duration_ms = body.verification_duration_ms || body.duration_ms || body.duration || 390;
 
     // Capture STM32 HMAC from header if present
@@ -136,6 +139,8 @@ export async function POST(req: NextRequest) {
       ...(stm32Hmac ? { stm32_hmac: stm32Hmac } : {}),
       ...(body.result ? { result: body.result } : {}),
       ...(body.source ? { source: body.source } : {}),
+      ...(body.target_chip ? { target_chip: body.target_chip } : {}),
+      ...(body.flash_size_bytes ? { flash_size_bytes: body.flash_size_bytes } : {}),
       ...(body.esp32_active !== undefined ? { esp32_active: body.esp32_active } : {}),
       ...(body.stm32_active !== undefined ? { stm32_active: body.stm32_active } : {}),
       ...(body.raspberry_pi_active !== undefined ? { raspberry_pi_active: body.raspberry_pi_active } : {})
