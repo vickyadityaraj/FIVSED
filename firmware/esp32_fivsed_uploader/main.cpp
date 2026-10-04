@@ -12,7 +12,9 @@
 #define PIN_BUZZER      23
 #define STM32_HEARTBEAT_TIMEOUT_MS 15000UL
 #define STM32_COMPONENT_TIMEOUT_MS 30000UL
-#define ESP32_HEARTBEAT_INTERVAL_MS 5000UL
+// Change heartbeat ping interval from 5000 to 3000
+#define ESP32_PING_INTERVAL_MS 3000UL
+#define ESP32_HEARTBEAT_INTERVAL_MS ESP32_PING_INTERVAL_MS
 #define LOCAL_HEARTBEAT_INTERVAL_MS 15000UL
 #define WIFI_RETRY_INTERVAL_MS 15000UL
 
@@ -23,7 +25,7 @@ static uint32_t lastStm32AckMs = 0;
 static uint32_t lastStm32ComponentMs = 0;
 static uint32_t lastLocalHeartbeatMs = 0;
 static uint32_t lastWifiAttemptMs = 0;
-static uint32_t lastEsp32HeartbeatMs = 0;
+static uint32_t lastHeartbeatSent = 0;
 static uint32_t esp32HeartbeatSequence = 0;
 static bool lastPiActive = false;
 static bool haveStm32Ack = false;
@@ -202,7 +204,7 @@ void setup() {
 
   // Send first heartbeat immediately on boot to establish link with STM32
   sendEsp32Heartbeat(Safety, ++esp32HeartbeatSequence);
-  lastEsp32HeartbeatMs = millis();
+  lastHeartbeatSent = millis();
   Serial.println("ESP32_HEARTBEAT seq=1 send=OK (initial)");
 }
 
@@ -210,17 +212,10 @@ void loop() {
   handleUsbConsole();
 
   const uint32_t now = millis();
-  if (cfg.uploadEnabled && !wifi.connected() && !cfg.ssid.isEmpty() &&
-      (static_cast<uint32_t>(now - lastWifiAttemptMs) >= WIFI_RETRY_INTERVAL_MS)) {
-    lastWifiAttemptMs = now;
-    Serial.println("WIFI_RECONNECT_ATTEMPT");
-    Serial.println(wifi.connect(cfg) ? "WIFI_CONNECTED" : "WIFI_CONNECT_FAILED");
-  }
 
-  digitalWrite(PIN_ONBOARD_LED, wifi.connected() ? HIGH : LOW);
-
-  if (static_cast<uint32_t>(now - lastEsp32HeartbeatMs) >= ESP32_HEARTBEAT_INTERVAL_MS) {
-    lastEsp32HeartbeatMs = now;
+  // 1. Prioritize transmission of Heartbeat to STM32 every 3s
+  if ((now - lastHeartbeatSent) >= ESP32_PING_INTERVAL_MS) {
+    lastHeartbeatSent = now;
     const bool sent = sendEsp32Heartbeat(Safety, ++esp32HeartbeatSequence);
     if (sent) {
       Serial.printf("ESP32_HEARTBEAT seq=%lu send=OK\n", static_cast<unsigned long>(esp32HeartbeatSequence));
@@ -229,6 +224,7 @@ void loop() {
     }
   }
 
+  // 2. Read incoming frames from STM32 without delay
   while (Safety.available() > 0) {
     Stm32EventFrame frame{};
     if (readStm32Event(Safety, frame, 50)) {
@@ -250,8 +246,19 @@ void loop() {
     }
   }
 
+  // Periodic Wi-Fi retry
+  if (cfg.uploadEnabled && !wifi.connected() && !cfg.ssid.isEmpty() &&
+      (static_cast<uint32_t>(now - lastWifiAttemptMs) >= WIFI_RETRY_INTERVAL_MS)) {
+    lastWifiAttemptMs = now;
+    Serial.println("WIFI_RECONNECT_ATTEMPT");
+    Serial.println(wifi.connect(cfg) ? "WIFI_CONNECTED" : "WIFI_CONNECT_FAILED");
+  }
+
+  digitalWrite(PIN_ONBOARD_LED, wifi.connected() ? HIGH : LOW);
+
+  // 3. Network operations (Keep delays minimal)
   if (cfg.uploadEnabled && WiFi.status() == WL_CONNECTED &&
-      static_cast<uint32_t>(now - lastLocalHeartbeatMs) >= LOCAL_HEARTBEAT_INTERVAL_MS) {
+      (now - lastLocalHeartbeatMs) >= LOCAL_HEARTBEAT_INTERVAL_MS) {
     lastLocalHeartbeatMs = now;
     const bool stm32 = stm32Active();
     const bool pi = stm32 && piActive();
