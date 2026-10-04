@@ -80,14 +80,65 @@ static bool piActive() {
   return stm32Active() && lastPiActive;
 }
 
-static void setIndicators(const String& result) {
-  const bool verified = result == "MATCH" || result == "NEW_TARGET_REGISTERED" || result == "REFERENCE_UPDATED";
-  const bool mismatch = result == "HASH_MISMATCH";
-  const bool error = !verified && !mismatch;
+static void triggerBuzzerChirp() {
+  digitalWrite(PIN_BUZZER, HIGH);
+  delay(100);
+  digitalWrite(PIN_BUZZER, LOW);
+}
 
-  digitalWrite(PIN_GREEN_LED, verified ? HIGH : LOW);
-  digitalWrite(PIN_RED_LED, (mismatch || error) ? HIGH : LOW);
-  digitalWrite(PIN_BUZZER, (mismatch || error) ? HIGH : LOW);
+static void triggerBuzzerAlarm() {
+  for (int i = 0; i < 3; ++i) {
+    digitalWrite(PIN_BUZZER, HIGH);
+    delay(150);
+    digitalWrite(PIN_BUZZER, LOW);
+    if (i < 2) delay(100);
+  }
+}
+
+static bool isVerificationPass(const Stm32EventFrame& frame) {
+  String p;
+  p.reserve(frame.payloadLen + 1);
+  for (uint16_t i = 0; i < frame.payloadLen; ++i) p += static_cast<char>(frame.payload[i]);
+
+  const int statusIdx = p.indexOf("\"status\"");
+  if (statusIdx >= 0) {
+    const int colon = p.indexOf(':', statusIdx);
+    if (colon >= 0) {
+      const int passIdx = p.indexOf("\"PASS\"", colon);
+      const int failIdx = p.indexOf("\"FAIL\"", colon);
+      if (passIdx >= 0 && (failIdx < 0 || passIdx < failIdx)) return true;
+      if (failIdx >= 0) return false;
+    }
+  }
+
+  const int resultIdx = p.indexOf("\"result\"");
+  if (resultIdx >= 0) {
+    const int colon = p.indexOf(':', resultIdx);
+    if (colon >= 0) {
+      if (p.indexOf("\"MATCH\"", colon) >= 0 ||
+          p.indexOf("\"NEW_TARGET_REGISTERED\"", colon) >= 0 ||
+          p.indexOf("\"REFERENCE_UPDATED\"", colon) >= 0) {
+        return true;
+      }
+      if (p.indexOf("\"HASH_MISMATCH\"", colon) >= 0) {
+        return false;
+      }
+    }
+  }
+
+  return false;
+}
+
+static void handleFirmwareVerificationIndicators(bool isPass) {
+  if (isPass) {
+    digitalWrite(PIN_GREEN_LED, HIGH);
+    digitalWrite(PIN_RED_LED, LOW);
+    triggerBuzzerChirp();
+  } else {
+    digitalWrite(PIN_RED_LED, HIGH);
+    digitalWrite(PIN_GREEN_LED, LOW);
+    triggerBuzzerAlarm();
+  }
 }
 
 static void handleCaProvisioning() {
@@ -171,8 +222,11 @@ void loop() {
   if (static_cast<uint32_t>(now - lastEsp32HeartbeatMs) >= ESP32_HEARTBEAT_INTERVAL_MS) {
     lastEsp32HeartbeatMs = now;
     const bool sent = sendEsp32Heartbeat(Safety, ++esp32HeartbeatSequence);
-    Serial.printf("ESP32_HEARTBEAT seq=%lu send=%s\n",
-                  static_cast<unsigned long>(esp32HeartbeatSequence), sent ? "OK" : "FAILED");
+    if (sent) {
+      Serial.printf("ESP32_HEARTBEAT seq=%lu send=OK\n", static_cast<unsigned long>(esp32HeartbeatSequence));
+    } else {
+      Serial.printf("ESP32_HEARTBEAT seq=%lu send=FAILED\n", static_cast<unsigned long>(esp32HeartbeatSequence));
+    }
   }
 
   while (Safety.available() > 0) {
@@ -183,10 +237,11 @@ void loop() {
       } else if (payloadContainsEvent(frame, "COMPONENT_HEARTBEAT")) {
         processComponentHeartbeat(frame);
       } else if (payloadContainsEvent(frame, "FIRMWARE_VERIFICATION")) {
+        const bool isPass = isVerificationPass(frame);
+        handleFirmwareVerificationIndicators(isPass);
         const String result = resultFromPayload(frame);
-        setIndicators(result);
         Serial.print("STM32_RESULT: ");
-        Serial.println(result);
+        Serial.println(isPass ? "PASS" : (result.isEmpty() ? "FAIL" : result));
         // Forward the STM32-authenticated verdict without changing the signed JSON or MAC.
         (void)uploadStm32Event(cfg, frame);
       }
